@@ -4,7 +4,7 @@ The plugin exposes your entire RSC environment to your AI assistant through natu
 
 ---
 
-## :speech_balloon: Example prompts
+## Example prompts
 
 **Protection & compliance**
 - *"Are all my VMware VMs backed up?"*
@@ -44,7 +44,7 @@ The plugin exposes your entire RSC environment to your AI assistant through natu
 
 ---
 
-## :globe_with_meridians: Coverage
+## Coverage
 
 The plugin covers all major RSC domains:
 
@@ -65,7 +65,7 @@ The plugin covers all major RSC domains:
 
 ---
 
-## :zap: Smart workflows
+## Smart workflows
 
 The plugin includes built-in composite workflows that handle multi-step investigations in a single call:
 
@@ -83,7 +83,7 @@ The plugin includes built-in composite workflows that handle multi-step investig
 
 ---
 
-## :inbox_tray: On-demand loading
+## On-demand loading
 
 The plugin uses progressive loading to keep startup fast. Additional domains can be loaded on demand:
 

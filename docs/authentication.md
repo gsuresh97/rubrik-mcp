@@ -4,7 +4,7 @@ The plugin authenticates with RSC using a **service account** with OAuth2 client
 
 ---
 
-## :lock: Create an RSC service account
+## Create an RSC service account
 
 1. Log into RSC and navigate to **Settings → User Management → Service Accounts**
 2. Click **Create Service Account**
@@ -18,7 +18,7 @@ The plugin authenticates with RSC using a **service account** with OAuth2 client
 
 ---
 
-## :memo: Configure the accounts file
+## Configure the accounts file
 
 The plugin uses an accounts file to support multiple RSC environments (prod, dev, staging, etc.).
 
@@ -41,7 +41,7 @@ For multiple environments:
 
 ---
 
-## :wrench: Environment variables
+## Environment variables
 
 | Variable | Required | Description |
 |---|---|---|
@@ -62,7 +62,7 @@ If you only have one environment, you can use:
 
 ---
 
-## :mag: Targeting a specific environment
+## Targeting a specific environment
 
 Pass `account="dev"` in any prompt to target a non-default environment:
 

@@ -8,7 +8,7 @@
 
 ---
 
-## :floppy_disk: Installation
+## Installation
 
 ### Claude Code (recommended)
 
@@ -33,7 +33,7 @@ If you use Claude Code, the plugin is available directly from the plugin marketp
 
 ---
 
-## :key: Configuration
+## Configuration
 
 Create an accounts file at `~/.rsc/accounts.json`:
 
@@ -54,7 +54,7 @@ For persistent configuration, add these to your shell profile (`~/.zshrc`, `~/.b
 
 ---
 
-## :white_check_mark: Verify it works
+## Verify it works
 
 Once installed and configured, try asking your AI assistant:
 
