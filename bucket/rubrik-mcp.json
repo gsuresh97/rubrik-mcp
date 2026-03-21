@@ -1,0 +1,22 @@
+{
+    "version": "0.1.0-beta.1",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_amd64.tar.gz",
+            "bin": [
+                "rubrik-mcp.exe"
+            ],
+            "hash": "b298b769be1c84039c8659d4e466738c2ccf07e40a57ed1db27c4a7b6cc66393"
+        },
+        "arm64": {
+            "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_arm64.tar.gz",
+            "bin": [
+                "rubrik-mcp.exe"
+            ],
+            "hash": "d76917487abedd7ce7f551e90cac20f07f03cb50b3d1256de4383df30e0d55ff"
+        }
+    },
+    "homepage": "https://rubrikinc.github.io/rubrik-mcp",
+    "license": "MIT",
+    "description": "Rubrik Security Cloud MCP Plugin — connect AI assistants to RSC"
+}
