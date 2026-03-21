@@ -6,14 +6,14 @@
             "bin": [
                 "rubrik-mcp.exe"
             ],
-            "hash": "b298b769be1c84039c8659d4e466738c2ccf07e40a57ed1db27c4a7b6cc66393"
+            "hash": "30f423701156d37f4241b02ffe4d68399417d2d9b251582911888a444de614f5"
         },
         "arm64": {
             "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_arm64.tar.gz",
             "bin": [
                 "rubrik-mcp.exe"
             ],
-            "hash": "d76917487abedd7ce7f551e90cac20f07f03cb50b3d1256de4383df30e0d55ff"
+            "hash": "3285b9e39a50722eb24058be87524dcd816df6ee7b7303cb3e2b1b9dff29df33"
         }
     },
     "homepage": "https://rubrikinc.github.io/rubrik-mcp",
