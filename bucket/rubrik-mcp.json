@@ -4,16 +4,16 @@
         "64bit": {
             "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_amd64.tar.gz",
             "bin": [
-                "rubrik-mcp.exe"
+                "rubrik.exe"
             ],
-            "hash": "e1a49d294bedae870b2e3187b37e6d777a5df5989acb0d5d97c1d8156cedebbe"
+            "hash": "f99fbece889fc753e66120431f2cc24c1f038c8cb9cef08ebe69446353405387"
         },
         "arm64": {
             "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_arm64.tar.gz",
             "bin": [
-                "rubrik-mcp.exe"
+                "rubrik.exe"
             ],
-            "hash": "258e75d9f26a9869fba4a91ac9c62050c262d2b40408534ca18506d9489c7714"
+            "hash": "eeda010c6e53f87ca397f5822bac93fd6fe3afd0981139c9e25d3511d50d1bff"
         }
     },
     "homepage": "https://rubrikinc.github.io/rubrik-mcp",
