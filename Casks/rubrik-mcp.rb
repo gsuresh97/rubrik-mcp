@@ -14,22 +14,22 @@ cask "rubrik-mcp" do
   on_macos do
     on_intel do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_darwin_amd64.tar.gz"
-      sha256 "085e20022244acc47a93eba1f5cc75e59a6a09cd205512cdf6b159c52b0b3408"
+      sha256 "7796d81373cc241dd0368b0ad701f76326a1be69d5b5361e18bf936f39943067"
     end
     on_arm do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_darwin_arm64.tar.gz"
-      sha256 "0f6e1a999c702cb16f44751b76f0533341d63137de11ce278e597a538bd1e959"
+      sha256 "11bbaab5f6315a19dfa811744437bdedb81986479e930bda3951395bfd9dd336"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_linux_amd64.tar.gz"
-      sha256 "a56be7b564d631ad7ccfe228a4c0bc73bd923cec3f0c8c305816993373a64d5a"
+      sha256 "bf1effa2ab4de5ea32451513ebe9930fb2232a0c43bda5238f404e4a0f332992"
     end
     on_arm do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_linux_arm64.tar.gz"
-      sha256 "b4132a72f3e2a154a114de8021bbb7d8de43cfee3c5cd4e6480efbb7d535728b"
+      sha256 "69e9a5460b294da371bc9b4ab45bb2e75ce7482898e8c3e585d4e783997e2e6c"
     end
   end
 
