@@ -416,22 +416,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#install-the-binary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        Install the binary
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Installation">
+    <nav class="md-nav" aria-label="Install the binary">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#claude-code-recommended" class="md-nav__link">
+  <a href="#macos-linux-homebrew" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Claude Code (recommended)
+        macOS / Linux — Homebrew
       
     </span>
   </a>
@@ -439,10 +439,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#manual-installation" class="md-nav__link">
+  <a href="#linux-curl-script" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Manual installation
+        Linux — curl script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows-scoop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows — Scoop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-download-any-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual download (any platform)
       
     </span>
   </a>
@@ -455,10 +477,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#configure-credentials" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration
+        Configure credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure-your-ai-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure your AI platform
       
     </span>
   </a>
@@ -678,22 +711,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#install-the-binary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        Install the binary
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Installation">
+    <nav class="md-nav" aria-label="Install the binary">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#claude-code-recommended" class="md-nav__link">
+  <a href="#macos-linux-homebrew" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Claude Code (recommended)
+        macOS / Linux — Homebrew
       
     </span>
   </a>
@@ -701,10 +734,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#manual-installation" class="md-nav__link">
+  <a href="#linux-curl-script" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Manual installation
+        Linux — curl script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows-scoop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows — Scoop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-download-any-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual download (any platform)
       
     </span>
   </a>
@@ -717,10 +772,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#configure-credentials" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration
+        Configure credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure-your-ai-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure your AI platform
       
     </span>
   </a>
@@ -774,55 +840,58 @@
 <li>One of the <a href="../platforms/">supported AI platforms</a></li>
 </ul>
 <hr />
-<h2 id="installation">Installation</h2>
-<h3 id="claude-code-recommended">Claude Code (recommended)</h3>
-<p>If you use Claude Code, the plugin is available directly from the plugin marketplace:</p>
-<ol>
-<li>Open Claude Code</li>
-<li>Run <code>/plugins</code> and search for <strong>Rubrik</strong></li>
-<li>Click <strong>Install</strong></li>
-<li>Set your environment variables (see below)</li>
-<li>Run <code>/reload-plugins</code></li>
-</ol>
-<h3 id="manual-installation">Manual installation</h3>
-<ol>
-<li>
-<p>Download the binary for your platform from <a href="../../releases">GitHub Releases</a></p>
-</li>
-<li>
-<p>Make the binary executable (macOS/Linux):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>chmod<span class="w"> </span>+x<span class="w"> </span>rsc-server-darwin-arm64<span class="w">   </span><span class="c1"># adjust for your platform</span>
-</code></pre></div></p>
-</li>
-<li>
-<p>Place it somewhere on your PATH, or note the full path for your platform config.</p>
-</li>
-</ol>
+<h2 id="install-the-binary">Install the binary</h2>
+<h3 id="macos-linux-homebrew">macOS / Linux — Homebrew</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>brew<span class="w"> </span>tap<span class="w"> </span>rubrikinc/rubrik-mcp
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>brew<span class="w"> </span>install<span class="w"> </span>--cask<span class="w"> </span>rubrik-mcp
+</code></pre></div>
+<h3 id="linux-curl-script">Linux — curl script</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://rubrikinc.github.io/rubrik-mcp/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
+</code></pre></div>
+<h3 id="windows-scoop">Windows — Scoop</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">scoop</span> <span class="n">bucket</span> <span class="n">add</span> <span class="n">rubrik</span> <span class="n">https</span><span class="p">://</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rubrikinc</span><span class="p">/</span><span class="n">rubrik-mcp</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">scoop</span> <span class="n">install</span> <span class="n">rubrik</span><span class="p">/</span><span class="n">rubrik-mcp</span>
+</code></pre></div>
+<h3 id="manual-download-any-platform">Manual download (any platform)</h3>
+<p>Download the archive for your platform from <a href="https://github.com/rubrikinc/rubrik-mcp/releases">github.com/rubrikinc/rubrik-mcp/releases</a>, extract it, and place the <code>rubrik-mcp</code> binary on your PATH:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>tar<span class="w"> </span>-xzf<span class="w"> </span>rubrik-rsc-plugin_*_darwin_arm64.tar.gz
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.local/bin
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mv<span class="w"> </span>rubrik-mcp<span class="w"> </span>~/.local/bin/rubrik-mcp
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>chmod<span class="w"> </span>+x<span class="w"> </span>~/.local/bin/rubrik-mcp
+</code></pre></div>
 <hr />
-<h2 id="configuration">Configuration</h2>
-<p>Create an accounts file at <code>~/.rsc/accounts.json</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;prod&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/your-service-account.json&quot;</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="p">}</span>
+<h2 id="configure-credentials">Configure credentials</h2>
+<p>See <a href="../authentication/">Authentication</a> for how to create an RSC service account and set up your credentials file.</p>
+<hr />
+<h2 id="configure-your-ai-platform">Configure your AI platform</h2>
+<p>Copy <code>.mcp.json.example</code> from the release archive as a starting point, or see <a href="../platforms/">Platform Setup</a> for platform-specific instructions.</p>
+<p>If you installed via Homebrew or Scoop, <code>rubrik-mcp</code> is on your PATH:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
 </code></pre></div>
-<p>Set these environment variables:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RSC_ACCOUNTS_FILE</span><span class="o">=</span>~/.rsc/accounts.json
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RSC_ACCOUNT</span><span class="o">=</span>prod
-</code></pre></div>
-<p>For persistent configuration, add these to your shell profile (<code>~/.zshrc</code>, <code>~/.bashrc</code>, etc.).</p>
 <hr />
 <h2 id="verify-it-works">Verify it works</h2>
-<p>Once installed and configured, try asking your AI assistant:</p>
+<p>Ask your AI assistant:</p>
 <blockquote>
 <p><em>"What is the health status of my Rubrik clusters?"</em></p>
 </blockquote>
-<p>You should get a response with live data from your RSC environment.</p>
+<p>You should get a live response from your RSC environment. If something goes wrong, see <a href="../troubleshooting/">Troubleshooting</a>.</p>
 <hr />
 <h2 id="next-steps">Next steps</h2>
 <ul>
-<li><a href="../authentication/">Authenticate with a service account</a></li>
-<li><a href="../platforms/">Configure your platform</a></li>
-<li><a href="../what-can-it-do/">See what the plugin can do</a></li>
+<li><a href="../authentication/">Authentication — service account setup</a></li>
+<li><a href="../platforms/">Platform Setup — per-platform config</a></li>
+<li><a href="../what-can-it-do/">What Can It Do</a></li>
+<li><a href="../write-operations/">Write Operations</a></li>
 </ul>
 
 

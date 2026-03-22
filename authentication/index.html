@@ -455,18 +455,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment-variables" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Environment variables
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Environment variables">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#single-account-shortcut" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -476,9 +464,15 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables reference
+      
+    </span>
+  </a>
   
 </li>
       
@@ -667,18 +661,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment-variables" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Environment variables
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Environment variables">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#single-account-shortcut" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -688,9 +670,15 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables reference
+      
+    </span>
+  </a>
   
 </li>
       
@@ -732,28 +720,45 @@
 <li>Give it a name (e.g. <code>mcp-plugin</code>)</li>
 <li>Assign the appropriate role:</li>
 <li><strong>Read-only use:</strong> Assign the built-in <code>Read-only</code> role</li>
-<li><strong>Write operations:</strong> Assign a role with the permissions you want to delegate (see <a href="../write-operations/">Write Operations</a>)</li>
+<li><strong>Write operations:</strong> Assign a role with the permissions you want to delegate — see <a href="../write-operations/">Write Operations</a></li>
 <li>Click <strong>Create</strong> and download the service account JSON file</li>
 </ol>
+<p>The downloaded file looks like this:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;client_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123...&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">&quot;client_secret&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;secret...&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">&quot;access_token_uri&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://yourcompany.my.rubrik.com/api/client_token&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mcp-plugin&quot;</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span>
+</code></pre></div>
 <blockquote>
-<p>Keep this file secure — it contains credentials that grant access to your RSC environment.</p>
+<p><strong>Keep this file secure</strong> — it grants API access to your RSC environment.</p>
 </blockquote>
 <hr />
 <h2 id="configure-the-accounts-file">Configure the accounts file</h2>
-<p>The plugin uses an accounts file to support multiple RSC environments (prod, dev, staging, etc.).</p>
-<p>Create <code>~/.rsc/accounts.json</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;prod&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/prod-service-account.json&quot;</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">}</span>
+<p>Create an accounts file that maps environment names to service account file paths.</p>
+<p><code>~/.rubrik/accounts.json</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;prod&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/prod-service-account.json&quot;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="p">}</span>
 </code></pre></div>
 <p>For multiple environments:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;prod&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/prod-service-account.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;dev&quot;</span><span class="p">:</span><span class="w">  </span><span class="s2">&quot;/path/to/dev-service-account.json&quot;</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">&quot;prod&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/prod-service-account.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">&quot;dev&quot;</span><span class="p">:</span><span class="w">  </span><span class="s2">&quot;/Users/you/.rubrik/dev-service-account.json&quot;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>Then set these environment variables in your platform config:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>RSC_ACCOUNTS_FILE = /Users/you/.rubrik/accounts.json
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>RSC_ACCOUNT       = prod
 </code></pre></div>
 <hr />
-<h2 id="environment-variables">Environment variables</h2>
+<h2 id="single-account-shortcut">Single-account shortcut</h2>
+<p>If you only have one RSC environment, you can point directly at the service account file without an accounts mapping:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>RSC_SERVICE_ACCOUNT_FILE = /Users/you/.rubrik/service-account.json
+</code></pre></div>
+<hr />
+<h2 id="environment-variables-reference">Environment variables reference</h2>
 <table>
 <thead>
 <tr>
@@ -765,46 +770,38 @@
 <tbody>
 <tr>
 <td><code>RSC_ACCOUNTS_FILE</code></td>
-<td>Yes</td>
+<td>Yes (multi)</td>
 <td>Path to your accounts JSON file</td>
 </tr>
 <tr>
 <td><code>RSC_ACCOUNT</code></td>
-<td>Yes</td>
-<td>Name of the active account (e.g. <code>prod</code>)</td>
+<td>Yes (multi)</td>
+<td>Active account name (e.g. <code>prod</code>)</td>
+</tr>
+<tr>
+<td><code>RSC_SERVICE_ACCOUNT_FILE</code></td>
+<td>Yes (single)</td>
+<td>Direct path to service account JSON</td>
 </tr>
 <tr>
 <td><code>RSC_TIMEOUT_SECONDS</code></td>
 <td>No</td>
 <td>HTTP timeout in seconds (default: 30)</td>
 </tr>
-</tbody>
-</table>
-<h3 id="single-account-shortcut">Single-account shortcut</h3>
-<p>If you only have one environment, you can use:</p>
-<table>
-<thead>
 <tr>
-<th>Variable</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>RSC_SERVICE_ACCOUNT_FILE</code></td>
-<td>Direct path to the service account JSON file</td>
+<td><code>RSC_TOOL_PROFILE</code></td>
+<td>No</td>
+<td><code>zero</code>, <code>minimal</code>, <code>standard</code> (default), <code>full</code></td>
 </tr>
 <tr>
-<td><code>RSC_BASE_URL</code></td>
-<td>RSC base URL (e.g. <code>https://mycompany.my.rubrik.com</code>)</td>
+<td><code>RSC_WRITE_ENABLED</code></td>
+<td>No</td>
+<td>Set to <code>true</code> to enable write operations</td>
 </tr>
 <tr>
-<td><code>RSC_CLIENT_ID</code></td>
-<td>Service account client ID</td>
-</tr>
-<tr>
-<td><code>RSC_CLIENT_SECRET</code></td>
-<td>Service account client secret</td>
+<td><code>RSC_DESTRUCTIVE_ENABLED</code></td>
+<td>No</td>
+<td>Set to <code>true</code> to enable irreversible operations (requires <code>RSC_WRITE_ENABLED=true</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -814,7 +811,6 @@
 <blockquote>
 <p><em>"Show me cluster health in the dev environment"</em></p>
 </blockquote>
-<p>The plugin passes this to every tool call automatically.</p>
 
 
 

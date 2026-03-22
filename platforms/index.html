@@ -461,6 +461,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#command-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-setup-with-mcpjsonexample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick setup with .mcp.json.example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#claude-code" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -531,6 +553,28 @@
     <span class="md-ellipsis">
       
         Gemini CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#augment-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Augment Code
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#amazon-q-developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Amazon Q Developer
       
     </span>
   </a>
@@ -683,6 +727,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#command-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-setup-with-mcpjsonexample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick setup with .mcp.json.example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#claude-code" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -760,6 +826,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#augment-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Augment Code
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#amazon-q-developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Amazon Q Developer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#openai-agents-sdk" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -799,135 +887,152 @@
 
 
 <h1 id="platform-setup">Platform Setup</h1>
-<p>The plugin works with any MCP-compatible AI platform. Follow the instructions for your platform below.</p>
+<p>The plugin works with any MCP-compatible AI platform. Each release archive includes a pre-configured rules file for every supported platform.</p>
+<hr />
+<h2 id="command-path">Command path</h2>
+<p>If you installed via <strong>Homebrew or Scoop</strong>, <code>rubrik-mcp</code> is on your PATH — use <code>"command": "rubrik-mcp"</code> in all configs below.</p>
+<p>If you installed via the <strong>curl script or direct download</strong>, use the full path: <code>"command": "/Users/you/.rubrik/rubrik-mcp"</code>.</p>
+<hr />
+<h2 id="quick-setup-with-mcpjsonexample">Quick setup with .mcp.json.example</h2>
+<p>Every release archive includes <code>.mcp.json.example</code> — a ready-to-use config for Claude Code. Copy and edit it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cp<span class="w"> </span>.mcp.json.example<span class="w"> </span>~/.mcp.json
+</code></pre></div>
+<p>Then edit the paths to match your installation.</p>
 <hr />
 <h2 id="claude-code">Claude Code</h2>
-<p>Claude Code is the recommended platform — it has the richest integration including skills, slash commands, and native plugin management.</p>
-<p><strong>Install from the plugin marketplace:</strong>
-1. Run <code>/plugins</code> in Claude Code
-2. Search for <strong>Rubrik</strong>
-3. Click <strong>Install</strong> and follow the prompts</p>
-<p><strong>Manual configuration</strong> (<code>.mcp.json</code> in your project or <code>~/.claude/.mcp.json</code> globally):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">        </span><span class="nt">&quot;RSC_TOOL_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;standard&quot;</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">}</span>
-</code></pre></div>
-<hr />
-<h2 id="cursor">Cursor</h2>
-<p>Add to <code>~/.cursor/mcp.json</code>:</p>
+<p><strong>Manual configuration</strong> (<code>.mcp.json</code> in your project root or <code>~/.claude/.mcp.json</code> globally):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="nt">&quot;RSC_TOOL_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;standard&quot;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
 </code></pre></div>
+<p>Claude Code also gets enhanced integration via the included skills and slash commands (<code>/rsc-health</code>, <code>/rsc-incidents</code>, etc.). Copy the <code>skills/</code> and <code>commands/</code> directories from the release archive into your project.</p>
 <hr />
-<h2 id="windsurf">Windsurf</h2>
-<p>Add to <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+<h2 id="cursor">Cursor</h2>
+<p>Add to <code>~/.cursor/mcp.json</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="p">}</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">}</span>
 </code></pre></div>
+<p>Copy <code>platform-rules/cursor/rsc.mdc</code> from the archive to <code>.cursor/rules/rsc.mdc</code> in your project.</p>
+<hr />
+<h2 id="windsurf">Windsurf</h2>
+<p>Add to <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">}</span>
+</code></pre></div>
+<p>Copy <code>.windsurfrules</code> from the archive to your project root.</p>
 <hr />
 <h2 id="cline">Cline</h2>
 <ol>
-<li>Open Cline settings → <strong>MCP Servers</strong></li>
-<li>Click <strong>Add Server</strong></li>
-<li>Set:</li>
-<li><strong>Command:</strong> <code>/path/to/rsc-server</code></li>
-<li><strong>Environment:</strong> <code>RSC_ACCOUNTS_FILE=/path/to/rsc_accounts.json</code>, <code>RSC_ACCOUNT=prod</code></li>
+<li>Open Cline settings → <strong>MCP Servers</strong> → <strong>Add Server</strong></li>
+<li>Set <strong>Command</strong> to <code>/Users/you/.rubrik/rubrik-mcp</code></li>
+<li>Add environment variables: <code>RSC_ACCOUNTS_FILE</code> and <code>RSC_ACCOUNT</code></li>
 </ol>
+<p>Copy <code>.clinerules</code> from the archive to your project root.</p>
 <hr />
 <h2 id="continuedev">Continue.dev</h2>
-<p>Add to <code>~/.continue/config.json</code> under <code>mcpServers</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;RSC&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="p">]</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
+<p>Add to <code>~/.continue/config.json</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;RSC&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="p">}</span>
 </code></pre></div>
+<p>Copy <code>.continuerules</code> from the archive to your project root.</p>
 <hr />
 <h2 id="vs-code-copilot">VS Code Copilot</h2>
 <p>Add to your VS Code <code>settings.json</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;github.copilot.chat.mcp.servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
-</code></pre></div>
-<hr />
-<h2 id="gemini-cli">Gemini CLI</h2>
-<p>Add to <code>~/.gemini/settings.json</code> under <code>mcpServers</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;github.copilot.chat.mcp.servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">      </span><span class="p">}</span>
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">}</span>
 </code></pre></div>
+<p>Copy <code>.github/copilot-instructions.md</code> from the archive to <code>.github/copilot-instructions.md</code> in your project.</p>
+<hr />
+<h2 id="gemini-cli">Gemini CLI</h2>
+<p>Add to <code>~/.gemini/settings.json</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">}</span>
+</code></pre></div>
+<p>Copy <code>GEMINI.md</code> from the archive to your project root.</p>
+<hr />
+<h2 id="augment-code">Augment Code</h2>
+<p>Copy <code>.augment/rules/rsc.md</code> from the archive to <code>.augment/rules/rsc.md</code> in your project.</p>
+<p>Configure the MCP server in Augment's settings using the same <code>command</code> and <code>env</code> pattern as the other platforms.</p>
+<hr />
+<h2 id="amazon-q-developer">Amazon Q Developer</h2>
+<p>Copy <code>.amazonq/rules/rsc.md</code> and <code>.amazonq/default.json</code> from the archive to <code>.amazonq/</code> in your project.</p>
+<p>Configure the MCP server in Amazon Q's settings.</p>
 <hr />
 <h2 id="openai-agents-sdk">OpenAI Agents SDK</h2>
-<p>Use the included system prompt template when initializing your agent:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span><span class="p">,</span> <span class="n">MCPServerStdio</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">rsc_server</span> <span class="o">=</span> <span class="n">MCPServerStdio</span><span class="p">(</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">params</span><span class="o">=</span><span class="p">{</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        <span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;/path/to/rsc-server&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="s2">&quot;env&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>            <span class="s2">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span> <span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>            <span class="s2">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span> <span class="s2">&quot;prod&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="p">},</span>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="p">}</span>
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">)</span>
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span>
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;RSC Assistant&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">instructions</span><span class="o">=</span><span class="s2">&quot;You are a Rubrik Security Cloud assistant...&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    <span class="n">mcp_servers</span><span class="o">=</span><span class="p">[</span><span class="n">rsc_server</span><span class="p">],</span>
-<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span><span class="p">,</span> <span class="n">MCPServerStdio</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">rsc_server</span> <span class="o">=</span> <span class="n">MCPServerStdio</span><span class="p">(</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">params</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>        <span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;rubrik-mcp&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>        <span class="s2">&quot;env&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>            <span class="s2">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span> <span class="s2">&quot;/Users/you/.rubrik/accounts.json&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>            <span class="s2">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span> <span class="s2">&quot;prod&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>        <span class="p">},</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="p">}</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">)</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;RSC Assistant&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    <span class="n">instructions</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;openai-agents-system-prompt.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>    <span class="n">mcp_servers</span><span class="o">=</span><span class="p">[</span><span class="n">rsc_server</span><span class="p">],</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="p">)</span>
 </code></pre></div>
-<p>See <a href="../openai-agents-system-prompt.md"><code>openai-agents-system-prompt.md</code></a> in the release archive for the full system prompt.</p>
+<p>Copy <code>openai-agents-system-prompt.md</code> from the archive and pass it as the agent instructions.</p>
 <hr />
 <h2 id="tool-profile">Tool profile</h2>
 <p>Set <code>RSC_TOOL_PROFILE</code> to control how many tools load at startup:</p>
@@ -940,6 +1045,11 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>zero</code></td>
+<td>~4</td>
+<td>Scripted/automated use — load domains on demand only</td>
+</tr>
 <tr>
 <td><code>minimal</code></td>
 <td>~120</td>
@@ -957,12 +1067,12 @@
 </tr>
 </tbody>
 </table>
-<p>The <code>standard</code> profile covers all common read and query operations. If you need write operations or a specific workload type that isn't responding, try asking your assistant to load more tools:</p>
+<p>Any domain can be loaded on demand mid-session without restarting:</p>
 <blockquote>
-<p><em>"Load VMware tools"</em>
-<em>"Load database tools"</em></p>
+<p><em>"Load VMware tools"</em><br />
+<em>"Load database tools"</em><br />
+<em>"Load threat tools"</em></p>
 </blockquote>
-<p>For write operations, see <a href="../write-operations/">Write Operations</a>. If tools still aren't responding after loading, see <a href="../troubleshooting/#tools-not-found-for-a-specific-workload-type">Troubleshooting</a>.</p>
 
 
 
