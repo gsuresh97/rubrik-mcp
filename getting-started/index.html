@@ -510,6 +510,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#using-the-cli-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the CLI directly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -634,6 +645,33 @@
     
   
     Write Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -805,6 +843,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#using-the-cli-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the CLI directly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -886,12 +935,23 @@
 </blockquote>
 <p>You should get a live response from your RSC environment. If something goes wrong, see <a href="../troubleshooting/">Troubleshooting</a>.</p>
 <hr />
+<hr />
+<h2 id="using-the-cli-directly">Using the CLI directly</h2>
+<p>The same binary also works as a standalone CLI — no AI platform needed. Once
+credentials are configured, run commands directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>rubrik<span class="w"> </span>vmware<span class="w"> </span>vm<span class="w"> </span>list
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>rubrik<span class="w"> </span>vmware<span class="w"> </span>vm<span class="w"> </span>sla<span class="w"> </span>--name<span class="w"> </span>prod-db-01
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>rubrik<span class="w"> </span>sla<span class="w"> </span>list
+</code></pre></div>
+<p>Tab completion is installed automatically on first run. See <a href="../cli/">CLI Reference</a>.</p>
+<hr />
 <h2 id="next-steps">Next steps</h2>
 <ul>
 <li><a href="../authentication/">Authentication — service account setup</a></li>
 <li><a href="../platforms/">Platform Setup — per-platform config</a></li>
 <li><a href="../what-can-it-do/">What Can It Do</a></li>
 <li><a href="../write-operations/">Write Operations</a></li>
+<li><a href="../cli/">CLI Reference</a></li>
 </ul>
 
 
