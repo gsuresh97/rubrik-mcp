@@ -1,19 +1,19 @@
 {
-    "version": "0.1.0-beta.1",
+    "version": "0.1.0-beta.2",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_amd64.tar.gz",
+            "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.2/rubrik-rsc-plugin_0.1.0-beta.2_windows_amd64.tar.gz",
             "bin": [
                 "rubrik.exe"
             ],
-            "hash": "f99fbece889fc753e66120431f2cc24c1f038c8cb9cef08ebe69446353405387"
+            "hash": "b8fb32f157723f00d01100264c96a70e4793194f425bfa04edf5a8e6a67ddfb1"
         },
         "arm64": {
-            "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.1/rubrik-rsc-plugin_0.1.0-beta.1_windows_arm64.tar.gz",
+            "url": "https://github.com/rubrikinc/rubrik-mcp/releases/download/v0.1.0-beta.2/rubrik-rsc-plugin_0.1.0-beta.2_windows_arm64.tar.gz",
             "bin": [
                 "rubrik.exe"
             ],
-            "hash": "eeda010c6e53f87ca397f5822bac93fd6fe3afd0981139c9e25d3511d50d1bff"
+            "hash": "95b4adc38413ad80f256a373f06f27a9cd71302cb5d5f04fb876b02da57da749"
         }
     },
     "homepage": "https://rubrikinc.github.io/rubrik-mcp",
