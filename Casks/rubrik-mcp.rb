@@ -3,7 +3,7 @@ cask "rubrik-mcp" do
   name "rubrik-mcp"
   desc "Rubrik Security Cloud MCP Plugin — connect AI assistants to RSC"
   homepage "https://rubrikinc.github.io/rubrik-mcp"
-  version "0.1.0-beta.1"
+  version "0.1.0-beta.2"
 
   livecheck do
     skip "Auto-generated on release."
@@ -14,22 +14,22 @@ cask "rubrik-mcp" do
   on_macos do
     on_intel do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_darwin_amd64.tar.gz"
-      sha256 "7796d81373cc241dd0368b0ad701f76326a1be69d5b5361e18bf936f39943067"
+      sha256 "22ffe53b4364467d133cc902e64f1506a323ea6a1cd744e4b290388e7b0fa7f8"
     end
     on_arm do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_darwin_arm64.tar.gz"
-      sha256 "11bbaab5f6315a19dfa811744437bdedb81986479e930bda3951395bfd9dd336"
+      sha256 "d30194bc12b5f130ab02b5076a22380deecce6f31c050335d33dc836d0c6d9a3"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_linux_amd64.tar.gz"
-      sha256 "bf1effa2ab4de5ea32451513ebe9930fb2232a0c43bda5238f404e4a0f332992"
+      sha256 "53d79d8e91117f9c64fc3e50ed71779921e71305b1604a39ef2cb57006a1d091"
     end
     on_arm do
       url "https://github.com/rubrikinc/rubrik-mcp/releases/download/v#{version}/rubrik-rsc-plugin_#{version}_linux_arm64.tar.gz"
-      sha256 "69e9a5460b294da371bc9b4ab45bb2e75ce7482898e8c3e585d4e783997e2e6c"
+      sha256 "7340526edf51ff5f0d04fed22123516d9dcd8150a7c072b3e8d88e92d334cd0e"
     end
   end
 
