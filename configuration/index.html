@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://rubrikinc.github.io/rubrik-mcp/write-operations/">
+        <link rel="canonical" href="https://rubrikinc.github.io/rubrik-mcp/configuration/">
       
       
-        <link rel="prev" href="../what-can-it-do/">
+        <link rel="prev" href="../platforms/">
       
       
-        <link rel="next" href="../cli/">
+        <link rel="next" href="../what-can-it-do/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Write Operations - Rubrik MCP Plugin</title>
+        <title>Tool Loading - Rubrik MCP Plugin</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#write-operations" class="md-skip">
+        <a href="#tool-loading-configuration" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Write Operations
+              Tool Loading
             
           </span>
         </div>
@@ -288,8 +288,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -300,11 +302,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
@@ -325,7 +327,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -424,10 +426,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Loading
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -443,6 +472,192 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-tool-loading-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Tool Loading Works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profile-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#domain-reference-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain Reference Matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Domain Reference Matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#virtualization-phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Virtualization (Phase 2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloud (Phase 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-phase-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database (Phase 4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#saas-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SaaS (Phase 5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#protection-phase-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protection (Phase 6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nas-phase-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NAS (Phase 6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-platform-phase-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security &amp; Platform (Phase 7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#always-loaded-phase-0-all-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Always Loaded (Phase 0 — all profiles)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnosing-what-loaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnosing What Loaded
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -486,37 +701,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Write Operations
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../write-operations/" class="md-nav__link">
         
   
   
@@ -532,81 +720,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#enabling-write-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enabling write operations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#destructive-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Destructive operations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#safety-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Safety model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#available-write-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Available write operations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -692,10 +805,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#enabling-write-operations" class="md-nav__link">
+  <a href="#how-tool-loading-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Enabling write operations
+        How Tool Loading Works
       
     </span>
   </a>
@@ -703,10 +816,143 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#destructive-operations" class="md-nav__link">
+  <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Destructive operations
+        Environment Variables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profile-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#domain-reference-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain Reference Matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Domain Reference Matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#virtualization-phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Virtualization (Phase 2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloud (Phase 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-phase-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database (Phase 4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#saas-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SaaS (Phase 5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#protection-phase-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protection (Phase 6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nas-phase-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NAS (Phase 6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-platform-phase-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security &amp; Platform (Phase 7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#always-loaded-phase-0-all-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Always Loaded (Phase 0 — all profiles)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
       
     </span>
   </a>
@@ -714,32 +960,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#safety-model" class="md-nav__link">
+  <a href="#diagnosing-what-loaded" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Safety model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#available-write-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Available write operations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example
+        Diagnosing What Loaded
       
     </span>
   </a>
@@ -763,149 +987,513 @@
 
 
 
-<h1 id="write-operations">Write Operations</h1>
-<p>By default, the plugin is <strong>read-only</strong>. All queries run without making any changes to your RSC environment. Write operations — backups, restores, SLA assignment, and configuration changes — are available but require explicit opt-in.</p>
+<h1 id="tool-loading-configuration">Tool Loading Configuration</h1>
+<p>The plugin registers RSC tools on startup based on a set of environment variables.
+This page explains the available controls and the full domain reference matrix.</p>
 <hr />
-<h2 id="enabling-write-operations">Enabling write operations</h2>
-<p>Set <code>RSC_WRITE_ENABLED=true</code> in your platform configuration:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">&quot;RSC&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rubrik-mcp&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNTS_FILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/rsc_accounts.json&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="nt">&quot;RSC_ACCOUNT&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">        </span><span class="nt">&quot;RSC_WRITE_ENABLED&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;true&quot;</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">}</span>
-</code></pre></div>
-<hr />
-<h2 id="destructive-operations">Destructive operations</h2>
-<p>Some operations are irreversible — restores that overwrite live data, SLA policy removals, encryption key changes. These require an additional variable:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">RSC_DESTRUCTIVE_ENABLED</span><span class="o">=</span><span class="nb">true</span>
-</code></pre></div>
-<p>Every destructive operation also requires an <strong>audit note</strong> explaining why the action is being taken. The assistant will prompt you for this before proceeding.</p>
-<hr />
-<h2 id="safety-model">Safety model</h2>
-<p>The plugin uses a three-layer protection model:</p>
-<p><strong>Layer 1 — Approval gate</strong>
-Every write operation pauses and requires your explicit approval. The assistant describes exactly what will happen and asks you to confirm.</p>
-<p><strong>Layer 2 — Environment gates</strong></p>
-<ul>
-<li>Additive operations (on-demand backup, live mount, SLA assignment): <code>RSC_WRITE_ENABLED=true</code></li>
-<li>Irreversible operations (restore, delete, encryption changes): <code>RSC_WRITE_ENABLED=true</code> + <code>RSC_DESTRUCTIVE_ENABLED=true</code></li>
-</ul>
-<p><strong>Layer 3 — Blast radius cap</strong>
-Before executing any destructive operation, the plugin:</p>
+<h2 id="how-tool-loading-works">How Tool Loading Works</h2>
+<p>At startup, the plugin reads <code>RSC_TOOL_PROFILE</code> (and related variables) to decide
+which domains to register. Only tools for registered domains appear in the AI's
+tool list — keeping context size small and startup fast.</p>
+<p><strong>Resolution order (first match wins):</strong></p>
 <ol>
-<li>Resolves all affected object names (no anonymous UUIDs)</li>
-<li>Counts how many objects will be affected</li>
-<li>Refuses to proceed if the count exceeds the cap (default: 10 objects) without explicit override</li>
-<li>Requires <code>dry_run=true</code> first if the blast radius is large</li>
+<li><code>RSC_TOOL_PROFILE=full</code> or <code>RSC_FULL_COVERAGE=true</code> → load everything</li>
+<li><code>RSC_TOOL_PROFILE=minimal</code> → load investigative core only</li>
+<li><code>RSC_TOOL_PROFILE=zero</code> → load nothing (use <code>rsc_load_domain</code> on demand)</li>
+<li><code>RSC_PHASES=1,2,3</code> → load specific phase numbers</li>
+<li><code>RSC_DOMAINS=vmware,aws</code> → load specific domains by name</li>
+<li>No variables set → <code>standard</code> profile (investigative core only)</li>
 </ol>
-<p>This prevents an AI from silently cascading a destructive operation to hundreds of objects.</p>
+<p><code>RSC_EXCLUDE_DOMAINS</code> applies <strong>after</strong> all of the above and always wins — it removes
+domains regardless of which profile is active.</p>
 <hr />
-<h2 id="available-write-operations">Available write operations</h2>
+<h2 id="environment-variables">Environment Variables</h2>
 <table>
 <thead>
 <tr>
-<th>Category</th>
-<th>Examples</th>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>On-demand backup</strong></td>
-<td>Trigger backup now for any VM, database, fileset, or cloud workload</td>
+<td><code>RSC_TOOL_PROFILE</code></td>
+<td><code>standard</code></td>
+<td>Profile preset: <code>zero</code>, <code>minimal</code>, <code>standard</code>, or <code>full</code></td>
 </tr>
 <tr>
-<td><strong>SLA management</strong></td>
-<td>Assign, update, remove, or pause SLA policies; bulk-assign across hierarchies</td>
+<td><code>RSC_FULL_COVERAGE</code></td>
+<td>—</td>
+<td>Set to <code>true</code> to load all domains (equivalent to <code>full</code> profile)</td>
 </tr>
 <tr>
-<td><strong>Recovery</strong></td>
-<td>Live mount, instant recovery, in-place restore, export snapshots</td>
+<td><code>RSC_DOMAINS</code></td>
+<td>—</td>
+<td>Comma-separated domain keys to load (e.g. <code>vmware,aws,mssql</code>)</td>
 </tr>
 <tr>
-<td><strong>Virtualization</strong></td>
-<td>Backup, export, mount, and restore VMware, Hyper-V, Nutanix, Kubernetes, OpenStack, OLVM, Proxmox, VCD</td>
+<td><code>RSC_EXCLUDE_DOMAINS</code></td>
+<td>—</td>
+<td>Comma-separated domain keys to exclude (applied after all other rules)</td>
 </tr>
 <tr>
-<td><strong>Cloud</strong></td>
-<td>On-demand snapshots and restores for EC2, EBS, RDS, Azure VMs, managed disks, SQL databases, GCP instances</td>
+<td><code>RSC_PHASES</code></td>
+<td>—</td>
+<td>Comma-separated phase numbers to load (e.g. <code>2,3</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="profile-presets">Profile presets</h3>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>What loads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zero</code></td>
+<td>Nothing — only <code>rsc_list_domains</code> and <code>rsc_load_domain</code> are registered. Use <code>rsc_load_domain</code> to load any domain on demand during a session. Best for scripted/automated use cases where startup latency matters.</td>
 </tr>
 <tr>
-<td><strong>Databases</strong></td>
-<td>On-demand backup and restore for MSSQL, Oracle, SAP HANA, MongoDB, MySQL, PostgreSQL, Cassandra, Db2, Informix, Exchange</td>
+<td><code>minimal</code></td>
+<td>Investigative core only: Objects, Snapshots, SLA, Jobs, Composite, and Smart tools. No cloud, virtualization, database, SaaS, or threat tools.</td>
 </tr>
 <tr>
-<td><strong>SaaS</strong></td>
-<td>Backup and restore for M365 (Exchange, SharePoint, Teams, OneDrive), Salesforce, GitHub, Atlassian, Okta, Google Workspace</td>
+<td><code>standard</code></td>
+<td>Same as <code>minimal</code>. This is the default when no profile is set.</td>
 </tr>
 <tr>
-<td><strong>NAS</strong></td>
-<td>Recover files and shares from Cloud Direct and fileset snapshots</td>
-</tr>
-<tr>
-<td><strong>Archival</strong></td>
-<td>Create and manage archival targets; tier snapshots; manage reader targets</td>
-</tr>
-<tr>
-<td><strong>Replication</strong></td>
-<td>Configure replication pairs; enable, disable, and pause replication</td>
-</tr>
-<tr>
-<td><strong>Recovery plans</strong></td>
-<td>Create, update, and execute orchestrated recovery plans and failover groups</td>
-</tr>
-<tr>
-<td><strong>Legal hold</strong></td>
-<td>Place and dissolve legal holds on snapshots</td>
-</tr>
-<tr>
-<td><strong>Managed volumes</strong></td>
-<td>Create, resize, open/close, and snapshot managed volumes</td>
-</tr>
-<tr>
-<td><strong>Cluster management</strong></td>
-<td>Manage networking, NTP, DNS, certificates, upgrades, node operations, encryption keys</td>
-</tr>
-<tr>
-<td><strong>Security</strong></td>
-<td>Manage users, roles, service accounts, certificates, TPR workflows, IP allowlists, MFA settings</td>
-</tr>
-<tr>
-<td><strong>Identity</strong></td>
-<td>Restore Active Directory objects, domains, and forests; restore Entra ID / Azure AD objects</td>
-</tr>
-<tr>
-<td><strong>Threat</strong></td>
-<td>Quarantine and release snapshots; start and cancel threat hunts; manage AIR policies</td>
-</tr>
-<tr>
-<td><strong>DSPM</strong></td>
-<td>Create and update data classification policies; manage SONAR crawls; update policy objects</td>
-</tr>
-<tr>
-<td><strong>Platform</strong></td>
-<td>Manage orgs, notifications, webhooks, event digests, OAuth apps, feature flags</td>
+<td><code>full</code></td>
+<td>All domains — equivalent to <code>RSC_FULL_COVERAGE=true</code>.</td>
 </tr>
 </tbody>
 </table>
 <hr />
-<h2 id="example">Example</h2>
-<p>With <code>RSC_WRITE_ENABLED=true</code>:</p>
-<blockquote>
-<p><em>"Trigger an on-demand backup of vm-prod-01"</em></p>
-</blockquote>
-<p>The assistant will confirm the target, show you what will happen, and ask for your approval before proceeding.</p>
-<p>With <code>RSC_DESTRUCTIVE_ENABLED=true</code>:</p>
-<blockquote>
-<p><em>"Restore oracle-db to the snapshot from last Tuesday"</em></p>
-</blockquote>
-<p>The assistant will identify the correct snapshot, show you the full restore plan including what will be overwritten, require an audit note, and ask for explicit confirmation.</p>
+<h2 id="domain-reference-matrix">Domain Reference Matrix</h2>
+<p>Use these keys in <code>RSC_DOMAINS</code> and <code>RSC_EXCLUDE_DOMAINS</code>. Both the <strong>primary key</strong>
+and any <strong>aliases</strong> are accepted. Parent keys (e.g. <code>virtualization</code>) load all
+subdomains; subdomain keys (e.g. <code>vmware</code>) load only that subdomain.</p>
+<h3 id="virtualization-phase-2">Virtualization (Phase 2)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>virtualization</code></td>
+<td>—</td>
+<td>All virtualization subdomains</td>
+</tr>
+<tr>
+<td><code>vmware</code></td>
+<td>—</td>
+<td>VMware vSphere VMs, vCenter, CDP</td>
+</tr>
+<tr>
+<td><code>hyperv</code></td>
+<td><code>scvmm</code></td>
+<td>Hyper-V / System Center VMM</td>
+</tr>
+<tr>
+<td><code>nutanix</code></td>
+<td>—</td>
+<td>Nutanix AHV VMs</td>
+</tr>
+<tr>
+<td><code>k8s</code></td>
+<td><code>kubernetes</code></td>
+<td>Kubernetes clusters and namespaces</td>
+</tr>
+<tr>
+<td><code>vcd</code></td>
+<td>—</td>
+<td>VMware Cloud Director</td>
+</tr>
+<tr>
+<td><code>openstack</code></td>
+<td>—</td>
+<td>OpenStack instances</td>
+</tr>
+<tr>
+<td><code>olvm</code></td>
+<td>—</td>
+<td>Oracle Linux Virtualization Manager</td>
+</tr>
+<tr>
+<td><code>proxmox</code></td>
+<td>—</td>
+<td>Proxmox VE</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cloud-phase-3">Cloud (Phase 3)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cloud</code></td>
+<td>—</td>
+<td>All cloud subdomains</td>
+</tr>
+<tr>
+<td><code>aws</code></td>
+<td>—</td>
+<td>AWS EC2, EBS, RDS, S3, DynamoDB</td>
+</tr>
+<tr>
+<td><code>azure</code></td>
+<td>—</td>
+<td>Azure VMs, Managed Disks, SQL</td>
+</tr>
+<tr>
+<td><code>gcp</code></td>
+<td>—</td>
+<td>GCP Compute Engine, Cloud SQL</td>
+</tr>
+<tr>
+<td><code>cloud_native</code></td>
+<td><code>cloud_multi</code></td>
+<td>Cross-cloud (Exocompute, tag rules)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="database-phase-4">Database (Phase 4)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>database</code></td>
+<td>—</td>
+<td>All database subdomains</td>
+</tr>
+<tr>
+<td><code>mssql</code></td>
+<td>—</td>
+<td>SQL Server</td>
+</tr>
+<tr>
+<td><code>oracle</code></td>
+<td>—</td>
+<td>Oracle Database</td>
+</tr>
+<tr>
+<td><code>saphana</code></td>
+<td>—</td>
+<td>SAP HANA</td>
+</tr>
+<tr>
+<td><code>mongodb</code></td>
+<td>—</td>
+<td>MongoDB</td>
+</tr>
+<tr>
+<td><code>mysql</code></td>
+<td>—</td>
+<td>MySQL</td>
+</tr>
+<tr>
+<td><code>cassandra</code></td>
+<td>—</td>
+<td>Apache Cassandra</td>
+</tr>
+<tr>
+<td><code>postgresql</code></td>
+<td>—</td>
+<td>PostgreSQL</td>
+</tr>
+<tr>
+<td><code>informix</code></td>
+<td>—</td>
+<td>IBM Informix</td>
+</tr>
+<tr>
+<td><code>exchange</code></td>
+<td>—</td>
+<td>On-premises Exchange (DAGs, servers)</td>
+</tr>
+<tr>
+<td><code>db2</code></td>
+<td>—</td>
+<td>IBM Db2</td>
+</tr>
+<tr>
+<td><code>mosaic</code></td>
+<td><code>nosql</code>, <code>databases_mosaic</code></td>
+<td>MongoDB / NoSQL (Mosaic)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="saas-phase-5">SaaS (Phase 5)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>saas</code></td>
+<td>—</td>
+<td>All SaaS subdomains</td>
+</tr>
+<tr>
+<td><code>o365</code></td>
+<td><code>onedrive</code>, <code>sharepoint</code>, <code>teams</code>, <code>exchange_online</code></td>
+<td>Microsoft 365 (Exchange Online, OneDrive, SharePoint, Teams)</td>
+</tr>
+<tr>
+<td><code>salesforce</code></td>
+<td>—</td>
+<td>Salesforce</td>
+</tr>
+<tr>
+<td><code>atlassian</code></td>
+<td>—</td>
+<td>Jira / Atlassian</td>
+</tr>
+<tr>
+<td><code>googleworkspace</code></td>
+<td>—</td>
+<td>Google Workspace (Gmail, Drive, Docs)</td>
+</tr>
+<tr>
+<td><code>dynamics365</code></td>
+<td>—</td>
+<td>Microsoft Dynamics 365</td>
+</tr>
+<tr>
+<td><code>okta</code></td>
+<td>—</td>
+<td>Okta</td>
+</tr>
+<tr>
+<td><code>github</code></td>
+<td>—</td>
+<td>GitHub / Azure DevOps</td>
+</tr>
+<tr>
+<td><code>compliance</code></td>
+<td><code>sonar</code>, <code>dspm</code>, <code>data_governance</code></td>
+<td>DSPM / SONAR data governance</td>
+</tr>
+</tbody>
+</table>
+<h3 id="protection-phase-6">Protection (Phase 6)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>protection</code></td>
+<td>—</td>
+<td>All protection subdomains</td>
+</tr>
+<tr>
+<td><code>archival</code></td>
+<td><code>replication</code></td>
+<td>Archival locations and replication targets</td>
+</tr>
+<tr>
+<td><code>managed_volumes</code></td>
+<td>—</td>
+<td>Managed volumes</td>
+</tr>
+<tr>
+<td><code>storage</code></td>
+<td><code>storage_arrays</code></td>
+<td>Storage arrays (Pure, NetApp)</td>
+</tr>
+<tr>
+<td><code>reporting</code></td>
+<td>—</td>
+<td>Protection reporting</td>
+</tr>
+</tbody>
+</table>
+<h3 id="nas-phase-6">NAS (Phase 6)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nas</code></td>
+<td><code>filesets</code>, <code>cloud_direct</code>, <code>volume_groups</code>, <code>nas_windows</code></td>
+<td>NAS filesets, Cloud Direct, Windows volume groups</td>
+</tr>
+</tbody>
+</table>
+<h3 id="security-platform-phase-7">Security &amp; Platform (Phase 7)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>security</code></td>
+<td><code>auth</code>, <code>access</code>, <code>users</code>, <code>certificates</code>, <code>tpr</code></td>
+<td>RBAC, authentication, users, certificates, Two-Person Rule</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>licensing</code></td>
+<td>Platform licensing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="always-loaded-phase-0-all-profiles">Always Loaded (Phase 0 — all profiles)</h3>
+<p>These domains load regardless of profile or <code>RSC_DOMAINS</code> settings. They cannot
+be excluded by profile, but <code>RSC_EXCLUDE_DOMAINS</code> still applies.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Aliases</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clusters</code></td>
+<td><code>clusters_health</code></td>
+<td>Cluster health and connectivity</td>
+</tr>
+<tr>
+<td><code>identity</code></td>
+<td><code>identity_activedirectory</code>, <code>active_directory</code></td>
+<td>Active Directory</td>
+</tr>
+<tr>
+<td><code>threat</code></td>
+<td><code>threat_ransomware</code>, <code>ransomware</code>, <code>radar</code></td>
+<td>Ransomware / Radar detections</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_orgs</code></td>
+<td>RSC tenant/org management</td>
+</tr>
+<tr>
+<td><code>threat</code></td>
+<td><code>threat_ioc</code>, <code>ioc</code></td>
+<td>IOC feeds</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_dscc</code>, <code>dscc</code></td>
+<td>Data Security Command Center (DSCC)</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_search</code></td>
+<td>Global search</td>
+</tr>
+<tr>
+<td><code>protection</code></td>
+<td><code>protection_legal_hold</code>, <code>legal_hold</code></td>
+<td>Legal hold</td>
+</tr>
+<tr>
+<td><code>threat</code></td>
+<td><code>threat_air</code>, <code>air</code></td>
+<td>Automated Incident Response (AIR)</td>
+</tr>
+<tr>
+<td><code>threat</code></td>
+<td><code>threat_malware</code>, <code>malware</code>, <code>anomaly</code></td>
+<td>Malware / anomaly detection</td>
+</tr>
+<tr>
+<td><code>threat</code></td>
+<td><code>threat_hunting</code>, <code>hunting</code></td>
+<td>Threat hunting</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_flags</code></td>
+<td>Feature flags</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_notifications</code></td>
+<td>Notifications</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_webhooks</code></td>
+<td>Webhooks</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_support</code></td>
+<td>Support tools</td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td><code>platform_ai</code>, <code>ai</code></td>
+<td>Ruby AI / chatbot tools</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="examples">Examples</h2>
+<p><strong>Load only VMware and AWS:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>RSC_DOMAINS=vmware,aws
+</code></pre></div></p>
+<p><strong>Load all cloud providers but exclude GCP:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>RSC_DOMAINS=cloud
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>RSC_EXCLUDE_DOMAINS=gcp
+</code></pre></div></p>
+<p><strong>Load everything except SaaS and threat tools:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>RSC_FULL_COVERAGE=true
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>RSC_EXCLUDE_DOMAINS=saas,threat
+</code></pre></div></p>
+<p><strong>Zero-load startup, then load domains on demand:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>RSC_TOOL_PROFILE=zero
+</code></pre></div>
+Then ask the AI: <em>"Load VMware tools"</em> — it will call <code>rsc_load_domain("vmware")</code>.</p>
+<hr />
+<h2 id="diagnosing-what-loaded">Diagnosing What Loaded</h2>
+<p>Use the <code>rsc_list_domains</code> tool (always registered) to see exactly which domains
+are active in the current session:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>What domains are currently loaded?
+</code></pre></div>
+<p>Or run <code>rubrik doctor</code> to check your full configuration including credential
+validation and connectivity.</p>
 
 
 

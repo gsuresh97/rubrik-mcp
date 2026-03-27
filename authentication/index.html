@@ -524,6 +524,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Loading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -818,7 +846,27 @@
 <tr>
 <td><code>RSC_TOOL_PROFILE</code></td>
 <td>No</td>
-<td><code>zero</code>, <code>minimal</code>, <code>standard</code> (default), <code>full</code></td>
+<td><code>zero</code>, <code>minimal</code>, <code>standard</code> (default), <code>full</code> — see <a href="../configuration/">Tool Loading</a></td>
+</tr>
+<tr>
+<td><code>RSC_FULL_COVERAGE</code></td>
+<td>No</td>
+<td>Set to <code>true</code> to load all domains (equivalent to <code>RSC_TOOL_PROFILE=full</code>)</td>
+</tr>
+<tr>
+<td><code>RSC_DOMAINS</code></td>
+<td>No</td>
+<td>Comma-separated domain keys to load (e.g. <code>vmware,aws</code>) — see <a href="../configuration/">Tool Loading</a></td>
+</tr>
+<tr>
+<td><code>RSC_EXCLUDE_DOMAINS</code></td>
+<td>No</td>
+<td>Comma-separated domain keys to exclude regardless of profile — see <a href="../configuration/">Tool Loading</a></td>
+</tr>
+<tr>
+<td><code>RSC_PHASES</code></td>
+<td>No</td>
+<td>Comma-separated phase numbers to load (e.g. <code>2,3</code>)</td>
 </tr>
 <tr>
 <td><code>RSC_WRITE_ENABLED</code></td>
