@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rubrik-mcp"
+version = "0.1.0"
+description = "MCP server for Rubrik Security Cloud"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.9",
+    "rsc-client>=1.4.20260518",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rubrik"]
+
+[project.scripts]
+rubrik-mcp = "rubrik.server:main"
+rubrik-job-monitor = "rubrik.server:job_monitor_main"
