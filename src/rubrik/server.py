@@ -437,31 +437,44 @@ def rsc_search_operations(search: str, operation_type: str = "all") -> list[dict
 def rsc_search_fields(search: str, limit: int = 10) -> list[dict]:
     """Search the GraphQL schema for FIELDS (not operations) matching the query.
 
-    Use this when operation-level search (rsc_search_operations) doesn't surface
-    a relevant operation, but the semantic you're looking for likely lives on a
-    field nested inside a return type. Common cases where field search wins:
+    Use when the semantic you are looking for likely lives on a field nested
+    inside a return type rather than on an operation name or description.
+    rsc_search_operations finds entry points (directly callable); this tool
+    finds concepts buried in the type graph that still need to be traced back
+    to an operation. Common cases where field search wins:
 
       - "logged in" -> Group.activeUsers (the canonical "who's logged in" answer
         — a field nested inside the Group type, invisible to operation search)
       - "cluster needs upgrade" -> Cluster.cdmUpgradeInfo (the right field for
         upgrade reasoning, on a Cluster returned by clusterConnection)
       - "sensitive data exposed" -> DataGovViolationDetails.violatedSensitiveHits
+      - "churn" or "ingest rate" -> fields on Snappable not surfaced by operation search
 
     Once you have a relevant (type, field) hit, find an operation whose return
     type chain contains that type — use rsc_search_operations or
     rsc_list_types_matching to follow the trail.
 
-    Field search COMPLEMENTS operation search; an LLM facing an ambiguous prompt
-    should try both and union the results.
+    DO NOT use this tool if you already know the type name — call
+    rsc_describe_type instead. This tool is for semantic discovery when you
+    don't know where in the schema a concept lives.
+
+    The search argument MUST be a meaningful natural-language phrase or
+    keywords describing the concept you are looking for (e.g. "churn daily
+    change rate backup", "sensitive data hits policy object"). An empty or
+    blank search is not allowed and will raise an error.
 
     Args:
-        search: Free-text query matched against field names + descriptions.
+        search: Natural-language keywords describing the concept to find.
+            Must be non-empty. Use descriptive terms, not type/field names
+            you already know.
         limit: Maximum number of results (default 10).
 
     Returns:
         List of dicts with: type (owning type name), field (field name),
         description (field description, may be empty), score (BM25 relevance).
     """
+    if not search or not search.strip():
+        raise ValueError("search must not be empty — provide a meaningful query term")
     return search_fields(search, limit=limit)
 
 
