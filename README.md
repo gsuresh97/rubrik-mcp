@@ -88,24 +88,24 @@ On the next restart, that tool appears alongside the built-in tools — a single
 
 If you're using Claude Code, paste this into the chat and the agent will handle the rest:
 
-> "Install the Rubrik MCP from `https://github.com/rubrikinc/rubrik` and add it to my Claude Code MCP configuration. My RSC service account JSON is at `~/.rsc/service_account.json`."
+> "Install the Rubrik MCP from `https://github.com/rubrikinc/rubrik-mcp` and add it to my Claude Code MCP configuration. My RSC service account JSON is at `~/.rsc/service_account.json`."
 
 For Claude Desktop:
 
-> "Install the Rubrik MCP from `https://github.com/rubrikinc/rubrik` and add it to my Claude Desktop config. My RSC service account JSON is at `~/.rsc/service_account.json`."
+> "Install the Rubrik MCP from `https://github.com/rubrikinc/rubrik-mcp` and add it to my Claude Desktop config. My RSC service account JSON is at `~/.rsc/service_account.json`."
 
 ### Install manually
 
 **Using pip:**
 
 ```bash
-pip install git+https://github.com/rubrikinc/rubrik.git
+pip install git+https://github.com/rubrikinc/rubrik-mcp.git
 ```
 
 **Using uv:**
 
 ```bash
-uv pip install git+https://github.com/rubrikinc/rubrik.git
+uv pip install git+https://github.com/rubrikinc/rubrik-mcp.git
 ```
 
 Note the full path to the installed command — you will need it for client configuration:

@@ -110,7 +110,7 @@ To contribute a workflow you've built, open a pull request in the community repo
 ## Development setup
 
 ```bash
-git clone https://github.com/rubrikinc/rubrik.git
+git clone https://github.com/rubrikinc/rubrik-mcp.git
 cd rubrik
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
