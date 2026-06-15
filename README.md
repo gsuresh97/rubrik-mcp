@@ -1,79 +1,79 @@
 # Rubrik MCP
 
-An MCP server that gives AI assistants access to the [Rubrik Security Cloud](https://www.rubrik.com/) GraphQL API — no custom integration required, no hardcoded queries, no schema knowledge needed upfront.
-
-Ask questions in plain language. The server handles discovery, query construction, and execution against your live RSC environment.
+An MCP server that connects AI assistants to the [Rubrik Security Cloud](https://www.rubrik.com/) GraphQL API.
 
 ---
 
 ## What you can do
 
-**Ask anything about your RSC environment:**
-> "Which VMs haven't had a successful backup in the last 24 hours?"
-> "Show me all workloads out of compliance with their SLA."
-> "What events failed overnight on the Atlanta cluster?"
-> "Take an on-demand snapshot of prod-db-01 and wait for it to finish."
+### Discovery
 
-The built-in discovery tools cover the entire RSC GraphQL API — 999 queries, 905 mutations, and 6,474 types — so the AI can find the right operation for any question without you having to know the API upfront.
+The MCP ships with a pre-built index of the entire RSC GraphQL API. The discovery tools let the AI agent explore that index — searching operations, inspecting full argument signatures, tracing input and return types — to find exactly the right operation and field shape for any request. This produces precise, well-formed GraphQL on the first try.
 
-**Get runnable code for write operations:**
+Discovery tools require no RSC credentials and work entirely offline. This makes them useful on their own: if you're evaluating the API, prototyping an integration, or building automation before you have production credentials, you can start immediately.
 
-This server is query-only for raw GraphQL execution. When you ask for a write operation that isn't covered by a built-in tool (like taking a snapshot), the server returns the attempted operation and Claude generates a Python code sample you can run directly:
-
-```python
-from rubrik_security_cloud import RSC
-import asyncio
-
-async def main():
-    async with RSC() as rsc:
-        result = await rsc.execute(
-            "mutation AssignSla($input: AssignSlasInput!) { assignSlas(input: $input) { success } }",
-            variables={"input": {"...": "..."}}
-        )
-        print(result)
-
-asyncio.run(main())
+```
+> "What operations are available for SLA management?"
+> "Show me the full argument shape for the assignSla mutation."
+> "Generate Python code to assign an SLA domain to a list of workload IDs."
 ```
 
-**Save common operations as your own tools:**
+Because the agent understands both queries and mutations from the schema index, it can generate runnable Python code for any write operation — without ever connecting to RSC.
 
-Once you've had a useful conversation, you can tell the AI to save it as a reusable workflow:
+### Execution
 
-> "Save this as a workflow called `rsc_compliance_report`."
+With an RSC service account, the agent can run live GraphQL queries against your environment:
 
-The next time you ask, it's a single tool call instead of multi-step discovery — using fewer tokens and responding faster. Workflows are plain JSON files stored in `~/.rubrik/workflows/` that you can edit, share, or version-control.
+- List workloads with protection status, compliance state, and backup history
+- Retrieve recent events and failures
+- Trigger on-demand snapshots and poll until they complete
+- Register hosts and assign SLA domains
 
-**Works with any MCP-compatible client:**
+Raw GraphQL execution is read-only. If you ask for a write operation not covered by a built-in tool, the server returns the attempted mutation and the agent generates a runnable code sample. A small number of write operations are available as dedicated built-in tools: on-demand snapshots (`rsc_take_on_demand_snapshot`), host onboarding (`rsc_onboard_host`), and SLA assignment (`rsc_assign_sla`). For everything else, the generated code approach gives you a runnable script with full control.
 
-Claude Code, Claude Desktop, OpenAI Codex CLI, Cursor, Windsurf, Continue, VS Code Copilot agent mode, and any other client that supports stdio MCP transport.
+### Built-in tools
 
----
+**Discovery** — no credentials required
 
-## Security
+| Tool | What it does |
+|------|-------------|
+| `rsc_search_operations` | Find queries and mutations by keyword |
+| `rsc_describe_operation` | Argument signature for a named operation |
+| `rsc_describe_operation_full` | Signature with all input types expanded inline |
+| `rsc_describe_type` | Fields and values for a GraphQL type |
+| `rsc_search_fields` | Search field names and descriptions across all types |
+| `rsc_list_queries` | All query names |
+| `rsc_list_mutations` | All mutation names |
+| `rsc_list_types` | All type names |
+| `rsc_list_types_matching` | Filter type names by substring |
 
-This server authenticates to Rubrik Security Cloud using a service account. Depending on the service account's assigned role, it may have access to sensitive data.
+**Execution** — service account required
 
-> **The service account credential in your config file is equivalent to a password with API-level access to your RSC environment. Treat it accordingly.**
+| Tool | What it does |
+|------|-------------|
+| `rsc_execute_operation` | Run any raw GraphQL query (mutations generate code instead) |
+| `rsc_get_workloads` | Workloads with protection status, compliance, and backup history |
+| `rsc_get_events` | Recent events and activity, always time-scoped |
+| `rsc_take_on_demand_snapshot` | Trigger a backup for a workload and return the job ID |
+| `rsc_wait_for_job` | Poll a job until completion |
+| `rsc_onboard_host` | Register a physical or virtual host |
+| `rsc_assign_sla` | Assign, unassign, or set do-not-protect on workloads |
 
-### Checklist
+**Workflow management** — service account required
 
-**Assign a least-privilege role**
-Create a dedicated RSC role with only the permissions your workflows actually need. A read-only role is sufficient for monitoring and reporting. Configure it at **Settings > Users and Roles > Roles**.
+| Tool | What it does |
+|------|-------------|
+| `rsc_save_workflow` | Save a conversation flow as a named reusable tool |
+| `rsc_list_workflows` | List all saved workflows |
+| `rsc_delete_workflow` | Remove a saved workflow |
 
-**Rotate service account secrets regularly**
-Client secrets do not expire by default. Rotate them on a schedule (monthly at minimum) at **Settings > Users and Roles > Service Accounts**, then update your local credentials file or environment variable. Use `chmod 600` on any file that contains a `client_secret`.
+### Tool creation
 
-**Enable Quorum Authorization for destructive operations**
-RSC's Quorum Authorization feature requires a second authorized user to approve sensitive operations before they execute — snapshot deletion, SLA policy changes, cluster configuration, and others. This adds a human checkpoint even when the service account has the necessary permissions. Configure it at **Settings > Security > Quorum Authorization**.
+After the agent has done the discovery work to answer a question, you can save that entire flow as a named MCP tool:
 
-**Configure the RSC IP allowlist**
-Restrict which IP addresses are permitted to authenticate to your RSC instance at **Settings > Security > IP Allowlist**. Add only the IPs or CIDR ranges from which this MCP server will run. This limits the blast radius if credentials are compromised.
+> "Save this as a workflow so I can reuse it."
 
-**Review RSC audit logs**
-All API activity performed by the service account is recorded in RSC's audit log at **Reports > Audit Logs**. Review it periodically.
-
-**Do not commit credentials to version control**
-The service account JSON file contains a `client_secret`. Do not commit it to git, share it in chat or email, or store it in a world-readable location.
+On the next restart, that tool appears alongside the built-in tools — a single call instead of multi-step schema discovery. Repeated operations use fewer tokens and respond faster. Workflow files are plain JSON you can edit, version-control, and share with your team.
 
 ---
 
@@ -82,7 +82,7 @@ The service account JSON file contains a `client_secret`. Do not commit it to gi
 ### Prerequisites
 
 - Python 3.10 or later
-- A Rubrik Security Cloud account with a service account (for execution tools)
+- A Rubrik Security Cloud account with a service account (for execution tools only)
 
 ### Install via agent prompt
 
@@ -90,11 +90,9 @@ If you're using Claude Code, paste this into the chat and the agent will handle 
 
 > "Install the Rubrik MCP from `https://github.com/rubrikinc/rubrik` and add it to my Claude Code MCP configuration. My RSC service account JSON is at `~/.rsc/service_account.json`."
 
-For Claude Desktop, the agent will edit your config file directly:
+For Claude Desktop:
 
 > "Install the Rubrik MCP from `https://github.com/rubrikinc/rubrik` and add it to my Claude Desktop config. My RSC service account JSON is at `~/.rsc/service_account.json`."
-
-You'll need your service account JSON file ready before running these — see [Authenticate](#authenticate) if you haven't set one up yet.
 
 ### Install manually
 
@@ -110,56 +108,12 @@ pip install git+https://github.com/rubrikinc/rubrik.git
 uv pip install git+https://github.com/rubrikinc/rubrik.git
 ```
 
-After installation, note the full path to the command — you will need it for client configuration:
+Note the full path to the installed command — you will need it for client configuration:
 
 ```bash
 which rubrik
 # example: /Users/you/.venv/bin/rubrik
 ```
-
-### Authenticate
-
-The discovery tools require no credentials. The execution tools require a Rubrik Security Cloud service account.
-
-Obtain a service account from your RSC instance: **Settings > Users and Roles > Service Accounts**.
-
-Provide credentials using **one** of the following methods:
-
-**Option A — Service account JSON file (recommended)**
-
-```json
-{
-  "client_id": "client|...",
-  "client_secret": "...",
-  "access_token_uri": "https://<your-rsc-domain>/api/client_token"
-}
-```
-
-Save to a file (e.g. `~/.rsc/service_account.json`) and set:
-
-```bash
-export RSC_SERVICE_ACCOUNT_FILE=/path/to/service_account.json
-```
-
-**Option B — Individual environment variables**
-
-```bash
-export RSC_URL=https://<your-rsc-domain>
-export RSC_CLIENT_ID=client|...
-export RSC_CLIENT_SECRET=...
-```
-
-**Option C — Config file at `~/.rsc/config.json`**
-
-```json
-{
-  "client_id": "client|...",
-  "client_secret": "...",
-  "access_token_uri": "https://<your-rsc-domain>/api/client_token"
-}
-```
-
-The client checks for credentials in this order: `RSC_SERVICE_ACCOUNT_FILE` → individual env vars → `~/.rsc/config.json`.
 
 ### Configure your MCP client
 
@@ -205,124 +159,89 @@ claude mcp list
 
 ---
 
-## Built-in tools
+## Service account setup
 
-### Discovery (no credentials needed)
+Create a service account in RSC at **Settings > Users and Roles > Service Accounts**. Download the JSON credential file when prompted — RSC will not show the secret again.
 
-These tools work entirely offline using a pre-built index of the RSC schema. No network, no auth required.
+The credential file looks like this:
 
-| Tool | Description |
-|------|-------------|
-| `rsc_search_operations` | Find queries/mutations by keyword |
-| `rsc_describe_operation` | Full argument signature for an operation |
-| `rsc_describe_operation_full` | Operation signature with all input types expanded inline |
-| `rsc_describe_type` | Fields/values for a GraphQL type |
-| `rsc_list_queries` | All query names |
-| `rsc_list_mutations` | All mutation names |
-| `rsc_list_types` | All type names |
-| `rsc_list_types_matching` | Filter type names by substring |
+```json
+{
+  "client_id": "client|...",
+  "client_secret": "...",
+  "access_token_uri": "https://<your-rsc-domain>/api/client_token"
+}
+```
 
-### Execution (credentials required)
+Provide it to the MCP server using one of three methods (checked in this order):
 
-| Tool | Description |
-|------|-------------|
-| `rsc_get_workloads` | List workloads with protection, compliance, usage, and backup status |
-| `rsc_get_events` | Get recent events and activity, always scoped to a time window |
-| `rsc_take_on_demand_snapshot` | Trigger an on-demand backup for a workload |
-| `rsc_wait_for_job` | Poll a backup job until it completes |
-| `rsc_execute_operation` | Run any raw GraphQL query (mutations are not supported — Claude will generate Python code instead) |
+**Option A — Service account JSON file (recommended)**
 
-### Workflows (credentials required)
+```bash
+export RSC_SERVICE_ACCOUNT_FILE=/path/to/service_account.json
+```
 
-Multi-step operations are saved as user-editable JSON files and automatically registered as callable tools on startup.
+**Option B — Individual environment variables**
 
-| Tool | Description |
-|------|-------------|
-| `rsc_save_workflow` | Save a workflow from conversation context |
-| `rsc_list_workflows` | List all workflows in your directory |
-| `rsc_delete_workflow` | Remove a workflow |
+```bash
+export RSC_URL=https://<your-rsc-domain>
+export RSC_CLIENT_ID=client|...
+export RSC_CLIENT_SECRET=...
+```
 
-**Starter workflows** (seeded to `~/.rubrik/workflows/` on first run):
+**Option C — Config file at `~/.rsc/config.json`**
 
-| Workflow | Description |
-|----------|-------------|
-| `rsc_snapshot_and_wait` | Take an on-demand snapshot for a cloud-native workload and poll until it completes |
-| `rsc_protection_gaps` | Out-of-compliance workloads + recent backup failures in one combined call |
-| `rsc_find_and_snapshot` | Find a workload by name, snapshot it, and wait for completion |
+```json
+{
+  "client_id": "client|...",
+  "client_secret": "...",
+  "access_token_uri": "https://<your-rsc-domain>/api/client_token"
+}
+```
+
+---
+
+## Service account role recommendations
+
+The role you assign to the service account determines what the MCP server can access. Assign only what your workflows actually need.
+
+**For monitoring, reporting, and auditing** — assign a read-only role. This covers workload listing, compliance status, event history, and backup reporting. A read-only role cannot modify SLA assignments, trigger snapshots, or change any configuration. This is the right starting point for most users.
+
+**For DevOps automation** — assign a role with the specific permissions your automation requires. Common additions: SLA management permissions (to assign or modify SLA domains) and on-demand backup permissions (to trigger snapshots). Do not grant cluster admin or global admin unless the workflow explicitly requires it.
+
+**General guidance:**
+
+- Create a dedicated role for the MCP service account rather than reusing an existing admin role. Name it clearly (e.g. "MCP Read-Only" or "MCP DevOps").
+- Configure roles at **Settings > Users and Roles > Roles**. Rubrik's permission model is hierarchical — scope roles to specific clusters or workload types where possible rather than granting global access.
+- For destructive operations (snapshot deletion, SLA policy removal, cluster configuration), enable Quorum Authorization at **Settings > Security > Quorum Authorization**. This requires a second authorized user to approve the operation before it executes, even when the service account has the necessary permissions.
+- Restrict which IPs can authenticate using the RSC IP allowlist at **Settings > Security > IP Allowlist**. Add only the IP or CIDR range of the machine running the MCP server.
+- Rotate client secrets on a schedule (monthly at minimum). Secrets do not expire by default. Use `chmod 600` on any file containing a `client_secret`.
+- All API activity is recorded in RSC audit logs at **Reports > Audit Logs**. Review periodically.
 
 ---
 
 ## Saving your own tools
 
-When you find yourself asking the same question repeatedly, save it. After a useful conversation:
+When you find yourself asking the same question repeatedly, save it:
 
 > "Save this as a workflow so I can reuse it."
 
-The AI calls `rsc_save_workflow`, which writes a JSON file to `~/.rubrik/workflows/`. On the next restart, that workflow is registered as a named MCP tool.
+The AI calls `rsc_save_workflow`, which writes a JSON file to `~/.rubrik/workflows/`. On the next restart, that workflow is registered as a named MCP tool — a single call instead of multi-step schema discovery. Repeated operations use fewer tokens and respond faster.
 
-**Why this matters for token efficiency:** answering an ad-hoc question requires the AI to search the schema, describe types, construct a query, and execute it — several round trips and hundreds of tokens of schema context per invocation. A saved workflow collapses that into a single tool call with a pre-built GraphQL operation. Repeated operations become cheaper and faster over time.
+Workflow files are plain JSON. Open them in any editor, adjust the query, change the defaults, or share them with your team.
 
-Workflow files are plain JSON — open them in any editor, tweak the query, change the defaults, or share them with your team.
+**Starter workflows** (available on first run):
 
----
+| Workflow | Description |
+|----------|-------------|
+| `rsc_snapshot_and_wait` | Take an on-demand snapshot for a cloud-native workload and poll until it completes |
+| `rsc_protection_gaps` | Out-of-compliance workloads and recent backup failures in one combined call |
+| `rsc_find_and_snapshot` | Find a workload by name, snapshot it, and wait for completion |
 
-## Community workflows
-
-Additional workflows contributed by the community — including threat feed management, SLA operations, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository. To install one, copy the JSON file into `~/.rubrik/workflows/` and restart your MCP client.
-
-**Contributing:** if you build a workflow that would be useful to others, open a pull request in the community repo. Add the JSON file to `workflows/` and update the README table. No code required — just the JSON spec.
-
----
-
-## Architecture
-
-```mermaid
-graph TD
-    CC["<b>MCP Client</b><br/>Claude Code · Claude Desktop<br/>Codex CLI · Cursor · others"]
-
-    subgraph MCP["Rubrik MCP  (FastMCP server, stdio)"]
-        DT["<b>Discovery Tools</b><br/>search · describe · list<br/><i>no credentials needed</i>"]
-        ET["<b>Execution Tools</b><br/>workloads · events · snapshots<br/>execute_operation (queries only)<br/><i>credentials required</i>"]
-        WF["<b>Workflows</b><br/>~/.rubrik/workflows/<br/><i>user-editable JSON tools</i>"]
-    end
-
-    subgraph CLIENT["rsc-client  (Python library, PyPI)"]
-        IDX["<b>Offline Index</b><br/>mcp_index.json · mcp_types.json · mcp_bm25_corpus.json<br/><i>999 queries · 905 mutations · 6474 types</i>"]
-        RC["<b>RSCClient</b><br/>HTTP · OAuth2 token cache"]
-    end
-
-    SA["<b>Service Account</b><br/>client_id · client_secret<br/><i>env var / ~/.rsc/config.json</i>"]
-    API["<b>Rubrik Security Cloud</b><br/>GraphQL API"]
-    SDL["<b>GraphQL Schema</b><br/><i>CI regenerates index on each release</i>"]
-
-    CC -->|"MCP protocol"| MCP
-    DT -->|"reads at startup"| IDX
-    ET -->|"delegates to"| RC
-    WF -->|"executes via"| RC
-    RC -->|"Bearer token"| API
-    SA -->|"loaded by"| RC
-    SDL -.->|"generates"| IDX
-```
-
-- **Discovery tools** are fully offline — they read pre-generated JSON indexes that ship with `rsc-client`; no network, no auth
-- **Execution tools** instantiate `RSCClient`, which loads credentials, gets an OAuth2 token, and fires the GraphQL request
-- **Workflows** are JSON specs that chain tool calls; the engine resolves `${step.field}` references between steps
-- **rsc-client** keeps the schema index current — CI regenerates it from the SDL on each Rubrik release
+Additional community-contributed workflows — threat feed management, SLA operations, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository. Copy any JSON file into `~/.rubrik/workflows/` and restart your MCP client to install it.
 
 ---
 
-## Development setup
+## Further reading
 
-```bash
-git clone https://github.com/rubrikinc/rubrik.git
-cd rubrik
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
-```
-
-To develop against a local `rsc-client` checkout instead of PyPI:
-
-```bash
-git clone https://github.com/rubrikinc/rubrik-security-cloud-python-graphql-client.git
-pip install -e ../rubrik-security-cloud-python-graphql-client
-```
+For the full built-in tools reference, architecture diagram, and development setup, see [docs/advanced.md](docs/advanced.md).
