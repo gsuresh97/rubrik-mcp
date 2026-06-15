@@ -430,6 +430,8 @@ def rsc_search_operations(search: str, operation_type: str = "all") -> list[dict
     Returns:
         List of matching operations with name, type, description, return_type.
     """
+    if not search or not search.strip():
+        raise ValueError("search must not be empty — provide a meaningful query term")
     return search_operations(search, operation_type)
 
 
