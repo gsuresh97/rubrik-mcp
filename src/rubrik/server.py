@@ -36,6 +36,7 @@ import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +58,34 @@ _RSC_JOB_MONITOR = os.path.join(os.path.dirname(os.path.abspath(sys.executable))
 
 # Directory where user-defined workflows are persisted
 _WORKFLOWS_DIR = Path.home() / ".rubrik" / "workflows"
+
+# Product identity sent to RSC on every GraphQL request so MCP traffic is
+# attributable server-side (drives the Sdk-Language / Sdk-Version / User-Agent
+# headers in rsc-client). Kept as a bare product name with no language suffix;
+# runtime details are carried in the User-Agent.
+_MCP_PRODUCT = "rubrik-mcp"
+
+
+def _mcp_version() -> str:
+    """This MCP's own version, for Sdk-Version.
+
+    Prefer the installed package metadata; fall back to the packaged
+    __version__ so the MCP always reports its own version (never "unknown"
+    and never the rsc-client version) even when run from an uninstalled
+    source checkout.
+    """
+    try:
+        return _pkg_version("rubrik-mcp")
+    except PackageNotFoundError:
+        from rubrik import __version__
+
+        return __version__
+
+
+def _mcp_rsc_client() -> RSCClient:
+    """Construct an RSCClient that identifies this MCP to RSC via SDK headers."""
+    return RSCClient(product=_MCP_PRODUCT, product_version=_mcp_version())
+
 
 _MUTATION_RE = re.compile(r'\bmutation\b', re.IGNORECASE)
 
@@ -789,7 +818,7 @@ def _wait_for_job_impl(
     poll_interval: int,
     printer,
 ) -> dict:
-    client = RSCClient()
+    client = _mcp_rsc_client()
     deadline = time.monotonic() + timeout
 
     while True:
@@ -864,7 +893,7 @@ def rsc_get_workloads(
     if sla_time_range:
         filter_input["slaTimeRange"] = sla_time_range
 
-    client = RSCClient()
+    client = _mcp_rsc_client()
     variables: dict[str, Any] = {"filter": filter_input or None}
     if sort_by:
         variables["sortBy"] = sort_by
@@ -910,7 +939,7 @@ def rsc_take_on_demand_snapshot(
             Db2Database.
         For other types use rsc_execute_operation directly.
     """
-    client = RSCClient()
+    client = _mcp_rsc_client()
 
     if object_type in _CLOUD_NATIVE_TYPES:
         mutation = (
@@ -997,7 +1026,7 @@ def rsc_onboard_host(
         For PHYSICAL_ASYNC: addMssqlHost reply (output.items list).
         For VSPHERE_VM and NUTANIX_VM: RequestSuccess ({success: bool}).
     """
-    client = RSCClient()
+    client = _mcp_rsc_client()
 
     if host_type in ("PHYSICAL", "PHYSICAL_ASYNC"):
         if not cluster_uuid:
@@ -1123,7 +1152,7 @@ def rsc_assign_sla(
     if user_note:
         input_payload["userNote"] = user_note
 
-    client = RSCClient()
+    client = _mcp_rsc_client()
     mutation = (
         "mutation AssignSla($input: AssignSlaInput!) { "
         "assignSla(input: $input) { success } }"
@@ -1198,7 +1227,7 @@ def rsc_get_events(
     if cluster_id:
         filters["clusterId"] = [cluster_id]
 
-    client = RSCClient()
+    client = _mcp_rsc_client()
     variables: dict[str, Any] = {
         "filters": filters,
         "sortBy": "LAST_UPDATED",
@@ -1301,7 +1330,7 @@ def rsc_execute_operation(
             ),
         }
 
-    client = RSCClient()
+    client = _mcp_rsc_client()
     result = client.execute(operation, variables=variables)
     # sgqlc returns a dict-like object; normalise to plain dict for MCP
     if hasattr(result, "__class__") and result.__class__.__name__ != "dict":
@@ -1503,7 +1532,7 @@ def _check_schema_sync() -> None:
     import re as _re
     try:
         index_date = field_index_schema_version()  # YYYYMMDD
-        client = RSCClient()
+        client = _mcp_rsc_client()
         raw = client.execute("query { deploymentVersion }")
         deployment = (raw.get("data") or {}).get("deploymentVersion", "")
         # deploymentVersion is e.g. "v20260518-53" — extract the date portion
