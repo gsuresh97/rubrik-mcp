@@ -4,16 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rubrik-mcp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "MCP server for Rubrik Security Cloud"
 requires-python = ">=3.10"
 dependencies = [
     "mcp[cli]>=1.9",
-    "rsc-client>=1.4.20260518",
+    "rsc-client>=1.5.20260601",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+
+[tool.hatch.version]
+path = "src/rubrik/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rubrik"]
