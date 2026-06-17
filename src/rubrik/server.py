@@ -59,9 +59,21 @@ _RSC_JOB_MONITOR = os.path.join(os.path.dirname(os.path.abspath(sys.executable))
 _WORKFLOWS_DIR = Path.home() / ".rubrik" / "workflows"
 
 _MUTATION_RE = re.compile(r'\bmutation\b', re.IGNORECASE)
+# GraphQL string literals (block + single-line) and "#" comments. Stripped before
+# the mutation check so the keyword inside a string or comment is not a false
+# match (e.g. `query { field(arg: "mutation") }`).
+_GQL_STRING_RE = re.compile(r'"""(?:.|\n)*?"""|"(?:\\.|[^"\\])*"')
+_GQL_COMMENT_RE = re.compile(r'#[^\n]*')
+
 
 def _is_mutation(operation: str) -> bool:
-    return bool(_MUTATION_RE.search(operation))
+    # Strip string literals and comments first, then look for the mutation
+    # keyword. Conservative by design: it still matches the keyword in ANY
+    # operation position (so a mutation anywhere in a multi-operation document is
+    # caught), and only over-blocks in the rare case of a field literally named
+    # "mutation" — the safe failure direction for a mutation-blocking gate.
+    stripped = _GQL_COMMENT_RE.sub("", _GQL_STRING_RE.sub("", operation))
+    return bool(_MUTATION_RE.search(stripped))
 
 # Starter workflow specs seeded to _WORKFLOWS_DIR on first run (only if file absent).
 # Users can freely edit, delete, or override these files.

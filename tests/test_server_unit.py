@@ -28,7 +28,12 @@ def test_server_imports_cleanly():
     ("query { accountId }", False),
     ("query GetWorkloads { snappableConnection { nodes { id } } }", False),
     ("MUTATION { doSomething }", True),                       # case-insensitive
-    ('query { field(arg: "mutation") }', True),               # known regex limitation — documents behavior
+    # "mutation" inside a string literal or comment is NOT a mutation (stripped first)
+    ('query { field(arg: "mutation") }', False),
+    ("# run the mutation\nquery { accountId }", False),
+    # ...but a real mutation is still caught in any operation position / after a comment
+    ("query Q { a }\nmutation M { b }", True),
+    ("# go\nmutation M { b }", True),
 ])
 def test_is_mutation(op, expected):
     assert server._is_mutation(op) is expected

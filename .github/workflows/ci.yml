@@ -46,8 +46,6 @@ jobs:
           printf '%s' "$RSC_SERVICE_ACCOUNT_JSON" > "$HOME/.config/rsc/ci-sa.json"
           chmod 600 "$HOME/.config/rsc/ci-sa.json"
       - name: Run read-tier integration tests
-        env:
-          RSC_SERVICE_ACCOUNT_FILE: ${{ github.workspace }}/../.config/rsc/ci-sa.json
         run: |
           # Read tier only. Write tests stay gated behind RSC_ALLOW_WRITE_TESTS,
           # which is intentionally NOT set in CI.
