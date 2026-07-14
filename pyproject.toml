@@ -30,3 +30,8 @@ markers = [
     "integration: live-RSC tests; require RSC_SERVICE_ACCOUNT_FILE (self-skip otherwise)",
     "write: mutating live-RSC tests; require a write SA + RSC_ALLOW_WRITE_TESTS=1 (self-skip otherwise)",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

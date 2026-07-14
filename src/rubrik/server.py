@@ -164,150 +164,6 @@ def _root_query_fields(operation: str) -> list[str]:
                 fields.append(tok)
     return fields
 
-# Starter workflow specs seeded to _WORKFLOWS_DIR on first run (only if file absent).
-# Users can freely edit, delete, or override these files.
-_STARTER_WORKFLOWS: list[dict] = [
-    {
-        "schema_version": 1,
-        "version": 2,
-        "name": "rsc_snapshot_and_wait",
-        "description": (
-            "Take an on-demand snapshot for a cloud-native workload and poll until it completes.\n\n"
-            "Pass args: {\"workload_id\": \"<fid>\", \"object_type\": \"<type>\"}\n\n"
-            "Use rsc_get_workloads to find a workload's fid and objectType. "
-            "Supported cloud-native types: AzureNativeVm, AwsNativeEc2Instance, "
-            "GcpNativeGCEInstance, AwsNativeRdsInstance, and others. "
-            "For CDM workloads (VmwareVirtualMachine, NutanixVirtualMachine, etc.) "
-            "call rsc_take_on_demand_snapshot and rsc_wait_for_job directly — "
-            "CDM jobs require a cluster_id that cannot be threaded through this workflow."
-        ),
-        "steps": [
-            {
-                "id": "snapshot",
-                "mcp": "rubrik",
-                "tool": "rsc_take_on_demand_snapshot",
-                "args": {
-                    "workload_id": "${_args.workload_id}",
-                    "object_type": "${_args.object_type}",
-                },
-            },
-            {
-                "id": "wait",
-                "mcp": "rubrik",
-                "tool": "rsc_wait_for_job",
-                "args": {
-                    "job_id": "${snapshot.taskchainUuids.0.taskchainUuid}",
-                    "object_type": "${_args.object_type}",
-                },
-            },
-        ],
-    },
-    {
-        "schema_version": 1,
-        "version": 2,
-        "name": "rsc_protection_gaps",
-        "description": (
-            "Get a combined view of out-of-compliance workloads and recent backup failures.\n\n"
-            "Returns two result sets: 'workloads' (out-of-compliance in the last 24 hours, "
-            "sorted by missed snapshots) and 'failures' (backup failures in the last 24 hours). "
-            "Use together to identify workloads that are both non-compliant and actively failing.\n\n"
-            "Pass args: {\"last_hours\": 48} to widen the failures window (only the failures "
-            "step is affected; the workloads step is fixed at LAST_24_HOURS). "
-            "Pass {\"object_type\": \"<type>\"} to scope the failures step to a specific "
-            "workload type. The workloads step always returns all workload types."
-        ),
-        "steps": [
-            {
-                "id": "workloads",
-                "mcp": "rubrik",
-                "tool": "rsc_get_workloads",
-                "args": {
-                    "compliance_status": "OUT_OF_COMPLIANCE",
-                    "sla_time_range": "LAST_24_HOURS",
-                    "sort_by": "MissedSnapshots",
-                    "sort_order": "DESC",
-                },
-            },
-            {
-                "id": "failures",
-                "mcp": "rubrik",
-                "tool": "rsc_get_events",
-                "args": {
-                    "last_hours": "${_args.last_hours}",
-                    "object_type": "${_args.object_type}",
-                    "status": "FAILURE",
-                    "activity_type": "BACKUP",
-                },
-            },
-        ],
-    },
-    {
-        "schema_version": 1,
-        "version": 2,
-        "name": "rsc_find_and_snapshot",
-        "description": (
-            "Find a cloud-native workload by name, take an on-demand snapshot, and wait for it to complete.\n\n"
-            "Pass args: {\"search_term\": \"<name>\"} to find the workload. Takes the first matching result.\n\n"
-            "Note: This workflow targets cloud-native workloads (AzureNativeVm, AwsNativeEc2Instance, etc.). "
-            "For CDM workloads, use rsc_take_on_demand_snapshot and rsc_wait_for_job directly."
-        ),
-        "steps": [
-            {
-                "id": "find",
-                "mcp": "rubrik",
-                "tool": "rsc_get_workloads",
-                "args": {
-                    "search_term": "${_args.search_term}",
-                },
-            },
-            {
-                "id": "snapshot",
-                "mcp": "rubrik",
-                "tool": "rsc_take_on_demand_snapshot",
-                "args": {
-                    "workload_id": "${find.0.fid}",
-                    "object_type": "${find.0.objectType}",
-                },
-            },
-            {
-                "id": "wait",
-                "mcp": "rubrik",
-                "tool": "rsc_wait_for_job",
-                "args": {
-                    "job_id": "${snapshot.taskchainUuids.0.taskchainUuid}",
-                    "object_type": "${find.0.objectType}",
-                },
-            },
-        ],
-    },
-    {
-        "schema_version": 1,
-        "version": 1,
-        "name": "rsc_get_active_sessions",
-        "description": (
-            "List users currently logged in to Rubrik Security Cloud. Returns active sessions "
-            "per user group via the Group.activeUsers field — the canonical answer to "
-            "\"who's logged in\" that operation-level schema search misses because the relevant "
-            "semantics live on a nested field, not on the operation itself.\n\n"
-            "Distinct from userAuditConnection (login *events* including service accounts) and "
-            "usersInCurrentAndDescendantOrganization (account roster sorted by lastLogin).\n\n"
-            "Returns groups with their currently-active users (username, email, lastLogin). "
-            "Groups with no active users come back with activeUsers: []. A user can appear in "
-            "multiple groups — dedupe by email when presenting if needed."
-        ),
-        "steps": [
-            {
-                "id": "sessions",
-                "mcp": "rubrik",
-                "tool": "rsc_execute_operation",
-                "args": {
-                    "operation": "query { groupsInCurrentAndDescendantOrganization { count nodes { groupName domainName activeUsers { username email lastLogin } } } }",
-                },
-            },
-        ],
-    },
-]
-
 # Registry of built-in RSC tool functions, populated after all @mcp.tool() definitions.
 # Used by _execute_workflow to dispatch RSC steps server-side by name.
 _TOOL_REGISTRY: dict[str, Any] = {}
@@ -509,37 +365,13 @@ def _register_workflow(spec: dict) -> None:
 
 
 def _load_workflows() -> None:
-    """Seed starter workflows if absent, then load and register all workflow specs."""
+    """Load and register all workflow specs from the workflows directory."""
     # Snapshot built-in tool names before any workflows register, so
     # rsc_save_workflow can detect collisions with a reserved name.
     global _BUILTIN_TOOL_NAMES
     _BUILTIN_TOOL_NAMES = {t.name for t in mcp._tool_manager.list_tools()}
 
     _WORKFLOWS_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-
-    for spec in _STARTER_WORKFLOWS:
-        path = _WORKFLOWS_DIR / f"{spec['name']}.json"
-        bundled_version = spec.get("version", 1)
-        if not path.exists():
-            path.write_text(json.dumps(spec, indent=2))
-            path.chmod(0o600)
-            continue
-        try:
-            on_disk = json.loads(path.read_text())
-        except Exception:
-            continue
-        on_disk_version = on_disk.get("version", 1)
-        if on_disk_version < bundled_version:
-            backup = path.with_suffix(f".json.bak-v{on_disk_version}")
-            path.rename(backup)
-            path.write_text(json.dumps(spec, indent=2))
-            path.chmod(0o600)
-            print(
-                f"[rubrik] updated starter workflow {spec['name']} "
-                f"from v{on_disk_version} to v{bundled_version} "
-                f"(previous version backed up to {backup.name})",
-                file=sys.stderr,
-            )
 
     for path in sorted(_WORKFLOWS_DIR.glob("*.json")):
         try:
