@@ -16,6 +16,32 @@ from rubrik import server
 
 
 # --------------------------------------------------------------------------- #
+# policy.py — RUBRIK_MCP_CONFIG_DIR resolution
+# --------------------------------------------------------------------------- #
+
+def test_rubrik_dir_defaults_to_home(monkeypatch):
+    monkeypatch.delenv("RUBRIK_MCP_CONFIG_DIR", raising=False)
+    from pathlib import Path
+    assert policy.rubrik_dir() == Path.home() / ".rubrik"
+
+
+def test_rubrik_dir_honors_env_override(monkeypatch, tmp_path):
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path))
+    from pathlib import Path
+    assert policy.rubrik_dir() == Path(tmp_path)
+    # and the policy path derives from it
+    assert policy.rubrik_dir() / "mcp-policy.json" == tmp_path / "mcp-policy.json"
+
+
+def test_rubrik_home_seeds_policy_under_override(monkeypatch, tmp_path):
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path))
+    pf = policy.rubrik_dir() / "mcp-policy.json"
+    policy.load(pf)
+    assert pf.exists()
+    assert pf.parent == tmp_path
+
+
+# --------------------------------------------------------------------------- #
 # policy.py — load / seed / merge / validate
 # --------------------------------------------------------------------------- #
 

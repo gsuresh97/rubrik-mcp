@@ -70,8 +70,9 @@ def _get_policy() -> policy.Policy:
 # Full path to the rsc-job-monitor CLI (same bin dir as the running interpreter)
 _RSC_JOB_MONITOR = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "rubrik-job-monitor")
 
-# Directory where user-defined workflows are persisted
-_WORKFLOWS_DIR = Path.home() / ".rubrik" / "workflows"
+# Directory where user-defined workflows are persisted (honors RUBRIK_MCP_CONFIG_DIR;
+# see policy.rubrik_dir()).
+_WORKFLOWS_DIR = policy.rubrik_dir() / "workflows"
 
 # Product identity sent to RSC on every GraphQL request so MCP traffic is
 # attributable server-side (drives the Sdk-Language / Sdk-Version / User-Agent

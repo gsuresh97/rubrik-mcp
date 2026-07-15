@@ -101,6 +101,8 @@ The server entry point is `src/rubrik/server.py`. Workflow files are plain JSON 
 
 Optional local allow/deny policy that bounds what the MCP will do, independent of the service account's RSC permissions (RBAC decides what the account *can* do; this decides what the MCP is *willing* to expose). Read from `~/.rubrik/mcp-policy.json` at startup; a secure-default template is seeded on first run (`0600`). Changes take effect on the next server start.
 
+**Relocating the config directory (`RUBRIK_MCP_CONFIG_DIR`).** Both the policy file and the `workflows/` directory live under `~/.rubrik` by default. Set the `RUBRIK_MCP_CONFIG_DIR` environment variable to point them elsewhere — e.g. `RUBRIK_MCP_CONFIG_DIR=/config` makes the server read/seed `/config/mcp-policy.json` and `/config/workflows/`. This is primarily for containers: mount a single volume and set `RUBRIK_MCP_CONFIG_DIR` to it, and the server auto-seeds the policy there on first run regardless of the image's home directory. See [docs/docker.md](docker.md).
+
 This is the template seeded on first run — every write tool is listed so you can see the full set and toggle each `true`/`false`:
 
 ```json
