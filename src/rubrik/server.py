@@ -21,7 +21,8 @@ Execution (requires RSC credentials via env vars or ~/.rsc/config.json):
   - execute_operation     — run a raw GraphQL query (mutations are not supported; Claude will
                             generate a Python code sample for any mutation request)
 
-User workflows (seeded to ~/.rubrik/workflows/ on first run, user-editable):
+User workflows (seeded to the workflows/ dir under the MCP config dir — ~/.rubrik by
+default, or $RUBRIK_MCP_CONFIG_DIR — on first run, user-editable):
   - rsc_snapshot_and_wait   — take an on-demand snapshot and poll until it completes (cloud-native)
   - rsc_protection_gaps     — out-of-compliance workloads + recent failures in one call
   - rsc_find_and_snapshot   — find a workload by name, snapshot it, and wait for completion
@@ -70,8 +71,13 @@ def _get_policy() -> policy.Policy:
 # Full path to the rsc-job-monitor CLI (same bin dir as the running interpreter)
 _RSC_JOB_MONITOR = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "rubrik-job-monitor")
 
-# Directory where user-defined workflows are persisted
-_WORKFLOWS_DIR = Path.home() / ".rubrik" / "workflows"
+def _workflows_dir() -> Path:
+    """Directory where user-defined workflows are persisted.
+
+    Resolved at call time (not a module-level constant) so it honors
+    ``RUBRIK_MCP_CONFIG_DIR`` regardless of import order — see policy.rubrik_dir().
+    """
+    return policy.rubrik_dir() / "workflows"
 
 # Product identity sent to RSC on every GraphQL request so MCP traffic is
 # attributable server-side (drives the Sdk-Language / Sdk-Version / User-Agent
@@ -163,6 +169,150 @@ def _root_query_fields(operation: str) -> list[str]:
             if nxt != ':':
                 fields.append(tok)
     return fields
+
+# Starter workflow specs seeded to the workflows dir on first run (only if file absent).
+# Users can freely edit, delete, or override these files.
+_STARTER_WORKFLOWS: list[dict] = [
+    {
+        "schema_version": 1,
+        "version": 2,
+        "name": "rsc_snapshot_and_wait",
+        "description": (
+            "Take an on-demand snapshot for a cloud-native workload and poll until it completes.\n\n"
+            "Pass args: {\"workload_id\": \"<fid>\", \"object_type\": \"<type>\"}\n\n"
+            "Use rsc_get_workloads to find a workload's fid and objectType. "
+            "Supported cloud-native types: AzureNativeVm, AwsNativeEc2Instance, "
+            "GcpNativeGCEInstance, AwsNativeRdsInstance, and others. "
+            "For CDM workloads (VmwareVirtualMachine, NutanixVirtualMachine, etc.) "
+            "call rsc_take_on_demand_snapshot and rsc_wait_for_job directly — "
+            "CDM jobs require a cluster_id that cannot be threaded through this workflow."
+        ),
+        "steps": [
+            {
+                "id": "snapshot",
+                "mcp": "rubrik",
+                "tool": "rsc_take_on_demand_snapshot",
+                "args": {
+                    "workload_id": "${_args.workload_id}",
+                    "object_type": "${_args.object_type}",
+                },
+            },
+            {
+                "id": "wait",
+                "mcp": "rubrik",
+                "tool": "rsc_wait_for_job",
+                "args": {
+                    "job_id": "${snapshot.taskchainUuids.0.taskchainUuid}",
+                    "object_type": "${_args.object_type}",
+                },
+            },
+        ],
+    },
+    {
+        "schema_version": 1,
+        "version": 2,
+        "name": "rsc_protection_gaps",
+        "description": (
+            "Get a combined view of out-of-compliance workloads and recent backup failures.\n\n"
+            "Returns two result sets: 'workloads' (out-of-compliance in the last 24 hours, "
+            "sorted by missed snapshots) and 'failures' (backup failures in the last 24 hours). "
+            "Use together to identify workloads that are both non-compliant and actively failing.\n\n"
+            "Pass args: {\"last_hours\": 48} to widen the failures window (only the failures "
+            "step is affected; the workloads step is fixed at LAST_24_HOURS). "
+            "Pass {\"object_type\": \"<type>\"} to scope the failures step to a specific "
+            "workload type. The workloads step always returns all workload types."
+        ),
+        "steps": [
+            {
+                "id": "workloads",
+                "mcp": "rubrik",
+                "tool": "rsc_get_workloads",
+                "args": {
+                    "compliance_status": "OUT_OF_COMPLIANCE",
+                    "sla_time_range": "LAST_24_HOURS",
+                    "sort_by": "MissedSnapshots",
+                    "sort_order": "DESC",
+                },
+            },
+            {
+                "id": "failures",
+                "mcp": "rubrik",
+                "tool": "rsc_get_events",
+                "args": {
+                    "last_hours": "${_args.last_hours}",
+                    "object_type": "${_args.object_type}",
+                    "status": "FAILURE",
+                    "activity_type": "BACKUP",
+                },
+            },
+        ],
+    },
+    {
+        "schema_version": 1,
+        "version": 2,
+        "name": "rsc_find_and_snapshot",
+        "description": (
+            "Find a cloud-native workload by name, take an on-demand snapshot, and wait for it to complete.\n\n"
+            "Pass args: {\"search_term\": \"<name>\"} to find the workload. Takes the first matching result.\n\n"
+            "Note: This workflow targets cloud-native workloads (AzureNativeVm, AwsNativeEc2Instance, etc.). "
+            "For CDM workloads, use rsc_take_on_demand_snapshot and rsc_wait_for_job directly."
+        ),
+        "steps": [
+            {
+                "id": "find",
+                "mcp": "rubrik",
+                "tool": "rsc_get_workloads",
+                "args": {
+                    "search_term": "${_args.search_term}",
+                },
+            },
+            {
+                "id": "snapshot",
+                "mcp": "rubrik",
+                "tool": "rsc_take_on_demand_snapshot",
+                "args": {
+                    "workload_id": "${find.0.fid}",
+                    "object_type": "${find.0.objectType}",
+                },
+            },
+            {
+                "id": "wait",
+                "mcp": "rubrik",
+                "tool": "rsc_wait_for_job",
+                "args": {
+                    "job_id": "${snapshot.taskchainUuids.0.taskchainUuid}",
+                    "object_type": "${find.0.objectType}",
+                },
+            },
+        ],
+    },
+    {
+        "schema_version": 1,
+        "version": 1,
+        "name": "rsc_get_active_sessions",
+        "description": (
+            "List users currently logged in to Rubrik Security Cloud. Returns active sessions "
+            "per user group via the Group.activeUsers field — the canonical answer to "
+            "\"who's logged in\" that operation-level schema search misses because the relevant "
+            "semantics live on a nested field, not on the operation itself.\n\n"
+            "Distinct from userAuditConnection (login *events* including service accounts) and "
+            "usersInCurrentAndDescendantOrganization (account roster sorted by lastLogin).\n\n"
+            "Returns groups with their currently-active users (username, email, lastLogin). "
+            "Groups with no active users come back with activeUsers: []. A user can appear in "
+            "multiple groups — dedupe by email when presenting if needed."
+        ),
+        "steps": [
+            {
+                "id": "sessions",
+                "mcp": "rubrik",
+                "tool": "rsc_execute_operation",
+                "args": {
+                    "operation": "query { groupsInCurrentAndDescendantOrganization { count nodes { groupName domainName activeUsers { username email lastLogin } } } }",
+                },
+            },
+        ],
+    },
+]
 
 # Registry of built-in RSC tool functions, populated after all @mcp.tool() definitions.
 # Used by _execute_workflow to dispatch RSC steps server-side by name.
@@ -299,10 +449,10 @@ def _execute_workflow(spec: dict, runtime_args: dict | None = None) -> Any:
                         f"Workflow step '{step.get('id')}' sends data to a non-Rubrik "
                         f"MCP ('{mcp_name}'), which is not on the cross-MCP egress "
                         "allowlist in the local MCP gating policy on this machine "
-                        "(~/.rubrik/mcp-policy.json). The referenced RSC data was not "
+                        f"({policy.policy_path()}). The referenced RSC data was not "
                         "resolved. Do not retry. Tell the user this destination is "
                         "blocked by their local policy and that they can change it by "
-                        "editing ~/.rubrik/mcp-policy.json themselves. Do not offer to edit "
+                        f"editing {policy.policy_path()} themselves. Do not offer to edit "
                         "the policy file, and do not modify it yourself — allowing a "
                         "destination is a deliberate action the user performs directly "
                         "on the file. For the policy format and options, point the user "
@@ -371,9 +521,34 @@ def _load_workflows() -> None:
     global _BUILTIN_TOOL_NAMES
     _BUILTIN_TOOL_NAMES = {t.name for t in mcp._tool_manager.list_tools()}
 
-    _WORKFLOWS_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    wf_dir = _workflows_dir()
+    wf_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
 
-    for path in sorted(_WORKFLOWS_DIR.glob("*.json")):
+    for spec in _STARTER_WORKFLOWS:
+        path = wf_dir / f"{spec['name']}.json"
+        bundled_version = spec.get("version", 1)
+        if not path.exists():
+            path.write_text(json.dumps(spec, indent=2))
+            path.chmod(0o600)
+            continue
+        try:
+            on_disk = json.loads(path.read_text())
+        except Exception:
+            continue
+        on_disk_version = on_disk.get("version", 1)
+        if on_disk_version < bundled_version:
+            backup = path.with_suffix(f".json.bak-v{on_disk_version}")
+            path.rename(backup)
+            path.write_text(json.dumps(spec, indent=2))
+            path.chmod(0o600)
+            print(
+                f"[rubrik] updated starter workflow {spec['name']} "
+                f"from v{on_disk_version} to v{bundled_version} "
+                f"(previous version backed up to {backup.name})",
+                file=sys.stderr,
+            )
+
+    for path in sorted(wf_dir.glob("*.json")):
         try:
             spec = json.loads(path.read_text())
             required = {"schema_version", "name", "description"}
@@ -1289,9 +1464,9 @@ def rsc_execute_operation(
             "blocked_fields": blocked,
             "message": (
                 f"The field(s) {blocked} are disabled by the local MCP gating policy "
-                "on this machine (~/.rubrik/mcp-policy.json). Do not retry. Tell the user "
+                f"on this machine ({policy.policy_path()}). Do not retry. Tell the user "
                 "this read is blocked by their local policy and that they can change it "
-                "by editing ~/.rubrik/mcp-policy.json themselves. Do not offer to edit the "
+                f"by editing {policy.policy_path()} themselves. Do not offer to edit the "
                 "policy file, and do not modify it yourself — enabling a blocked field "
                 "is a deliberate action the user performs directly on the file. For the "
                 "policy format and options, point the user to the Rubrik MCP docs "
@@ -1365,8 +1540,11 @@ def rsc_save_workflow(
     """Save a multi-step workflow as a named, callable MCP tool.
 
     Call this after completing a workflow in conversation to persist it for
-    future use. The workflow is written to ~/.rubrik/workflows/
-    and registered immediately. It loads automatically on next server start.
+    future use. The workflow is written to the workflows/ dir under the MCP
+    config directory (~/.rubrik/workflows/ by default, or under
+    $RUBRIK_MCP_CONFIG_DIR when set) and registered immediately. It loads
+    automatically on next server start. The exact file path is returned in the
+    response.
 
     Provide either `spec` (the complete workflow dict) or `steps` + the other
     fields individually. Passing `spec` is simpler when the LLM has already
@@ -1436,8 +1614,9 @@ def rsc_save_workflow(
 
     resolved.setdefault("schema_version", 1)
 
-    _WORKFLOWS_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path = _WORKFLOWS_DIR / f"{name}.json"
+    wf_dir = _workflows_dir()
+    wf_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path = wf_dir / f"{name}.json"
     path.write_text(json.dumps(resolved, indent=2))
     path.chmod(0o600)
 
@@ -1458,14 +1637,17 @@ def rsc_save_workflow(
 
 @mcp.tool()
 def rsc_list_workflows() -> list[dict]:
-    """List all user-defined workflows in ~/.rubrik/workflows/.
+    """List all user-defined workflows in the MCP config dir's workflows/ folder.
 
-    Returns name, description preview, step count, and file path for each workflow.
+    Location is ~/.rubrik/workflows/ by default, or under $RUBRIK_MCP_CONFIG_DIR
+    when set. Returns name, description preview, step count, and the resolved file
+    path for each workflow.
     """
-    if not _WORKFLOWS_DIR.exists():
+    wf_dir = _workflows_dir()
+    if not wf_dir.exists():
         return []
     results = []
-    for path in sorted(_WORKFLOWS_DIR.glob("*.json")):
+    for path in sorted(wf_dir.glob("*.json")):
         try:
             spec = json.loads(path.read_text())
             steps = spec.get("steps", [{"id": "main"}])
@@ -1482,10 +1664,11 @@ def rsc_list_workflows() -> list[dict]:
 
 @mcp.tool()
 def rsc_delete_workflow(name: str) -> dict:
-    """Delete a user-defined workflow from ~/.rubrik/workflows/.
+    """Delete a user-defined workflow from the MCP config dir's workflows/ folder.
 
-    Removes the workflow file from disk. The workflow remains callable in the
-    current server session but will not load on next restart.
+    Location is ~/.rubrik/workflows/ by default, or under $RUBRIK_MCP_CONFIG_DIR
+    when set. Removes the workflow file from disk. The workflow remains callable
+    in the current server session but will not load on next restart.
 
     Args:
         name: The workflow name (as returned by rsc_list_workflows).
@@ -1498,7 +1681,7 @@ def rsc_delete_workflow(name: str) -> dict:
             f"'{name}' is not a valid workflow name. "
             "Must be a Python identifier (letters, digits, underscores, no spaces)."
         )
-    path = _WORKFLOWS_DIR / f"{name}.json"
+    path = _workflows_dir() / f"{name}.json"
     if not path.exists():
         raise FileNotFoundError(f"No workflow named '{name}' found at {path}")
     path.unlink()
@@ -1570,7 +1753,7 @@ def main():
         # Fail closed: a present-but-malformed policy must not fall back to a
         # permissive default.
         print(
-            f"[rubrik] FATAL: invalid gating policy ({policy.POLICY_PATH}): {exc}",
+            f"[rubrik] FATAL: invalid gating policy ({policy.policy_path()}): {exc}",
             file=sys.stderr, flush=True,
         )
         sys.exit(1)

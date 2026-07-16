@@ -1,6 +1,7 @@
 """Allow/deny gating policy for the Rubrik MCP server.
 
-Loaded from ``~/.rubrik/mcp-policy.json``. This is an MCP-layer control that
+Loaded from ``~/.rubrik/mcp-policy.json`` (or ``$RUBRIK_MCP_CONFIG_DIR/mcp-policy.json``
+when ``RUBRIK_MCP_CONFIG_DIR`` is set — useful for containers). This is an MCP-layer control that
 complements RSC's server-side RBAC: RBAC bounds what the configured service
 account *can* do; this policy bounds what the MCP server *will* do, independent
 of the service account's role.
@@ -31,7 +32,27 @@ import sys
 from pathlib import Path
 from typing import Any
 
-POLICY_PATH = Path.home() / ".rubrik" / "mcp-policy.json"
+def rubrik_dir() -> Path:
+    """Directory holding the MCP's local config (``mcp-policy.json`` and the
+    ``workflows/`` dir).
+
+    Defaults to ``~/.rubrik``. Set ``RUBRIK_MCP_CONFIG_DIR`` to relocate it — this lets a
+    containerized server point both the policy file and the workflows dir at a
+    single mounted volume, independent of the image's home directory or OS.
+    Read live (not cached) so tests and env changes take effect.
+    """
+    override = os.environ.get("RUBRIK_MCP_CONFIG_DIR")
+    return Path(override) if override else Path.home() / ".rubrik"
+
+
+def policy_path() -> Path:
+    """Live path to ``mcp-policy.json``, resolved at call time.
+
+    Deliberately a function, not a module-level constant: a constant would freeze
+    :func:`rubrik_dir` at import time and defeat the ``RUBRIK_MCP_CONFIG_DIR``
+    override for anything that runs after import.
+    """
+    return rubrik_dir() / "mcp-policy.json"
 
 # Curated write tools known to the server. Listed here so the seed template is
 # self-documenting and an operator sees every write tool they can toggle.
@@ -181,12 +202,17 @@ def _seed(path: Path) -> None:
     print(f"[rubrik] seeded default gating policy at {path}", file=sys.stderr, flush=True)
 
 
-def load(path: Path = POLICY_PATH, *, seed_if_absent: bool = True) -> Policy:
+def load(path: Path | None = None, *, seed_if_absent: bool = True) -> Policy:
     """Load and validate the gating policy.
+
+    ``path`` defaults to :func:`policy_path`, resolved at call time so
+    ``RUBRIK_MCP_CONFIG_DIR`` takes effect regardless of import order.
 
     Absent file -> seed the secure-default template (unless ``seed_if_absent`` is
     False) and return defaults. Present-but-malformed -> raise :class:`PolicyError`.
     """
+    if path is None:
+        path = policy_path()
     if not path.exists():
         if seed_if_absent:
             _seed(path)

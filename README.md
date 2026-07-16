@@ -240,14 +240,22 @@ When you find yourself asking the same question repeatedly, save it:
 
 > "Save this as a workflow so I can reuse it."
 
-The AI calls `rsc_save_workflow`, which writes a JSON file to `~/.rubrik/workflows/`. On the next restart, that workflow is registered as a named MCP tool — a single call instead of multi-step schema discovery. Repeated operations use fewer tokens and respond faster.
+The AI calls `rsc_save_workflow`, which writes a JSON file to the MCP config directory's `workflows/` folder — `~/.rubrik/workflows/` by default, or under `$RUBRIK_MCP_CONFIG_DIR` when set (see [docs/docker.md](docs/docker.md) for the containerized case). On the next restart, that workflow is registered as a named MCP tool — a single call instead of multi-step schema discovery. Repeated operations use fewer tokens and respond faster.
 
 Workflow files are plain JSON. Open them in any editor, adjust the query, change the defaults, or share them with your team.
 
-Community-contributed workflows — snapshot automation, protection gap reporting, threat feed management, SLA operations, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository. Copy any JSON file into `~/.rubrik/workflows/` and restart your MCP client to install it.
+**Starter workflows** (available on first run):
+
+| Workflow | Description |
+|----------|-------------|
+| `rsc_snapshot_and_wait` | Take an on-demand snapshot for a cloud-native workload and poll until it completes |
+| `rsc_protection_gaps` | Out-of-compliance workloads and recent backup failures in one combined call |
+| `rsc_find_and_snapshot` | Find a workload by name, snapshot it, and wait for completion |
+
+Additional community-contributed workflows — threat feed management, SLA operations, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository. Copy any JSON file into the config directory's `workflows/` folder (`~/.rubrik/workflows/` by default, or under `$RUBRIK_MCP_CONFIG_DIR`) and restart your MCP client to install it.
 
 ---
 
 ## Further reading
 
-For the full built-in tools reference, architecture diagram, the local gating policy (`~/.rubrik/mcp-policy.json`), and development setup, see [docs/advanced.md](docs/advanced.md).
+For the full built-in tools reference, architecture diagram, the local gating policy (`~/.rubrik/mcp-policy.json`, relocatable via `$RUBRIK_MCP_CONFIG_DIR`), and development setup, see [docs/advanced.md](docs/advanced.md). To run the server in a container, see [docs/docker.md](docs/docker.md).
