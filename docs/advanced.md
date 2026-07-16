@@ -33,20 +33,15 @@ These tools work entirely offline using a pre-built index of the RSC schema. No 
 | `rsc_wait_for_job` | Poll a backup job until it completes |
 | `rsc_assign_sla` | Assign an SLA domain to one or more workloads |
 | `rsc_onboard_host` | Register a host so Rubrik can protect workloads running on it |
-| `rsc_get_active_sessions` | List users currently logged in to RSC |
 
-### Composite tools
+### Community workflow examples
 
-These are built-in multi-step workflows that cover common end-to-end operations.
+Workflows are plain JSON files installed by dropping them into `~/.rubrik/workflows/` and restarting the MCP client. Examples from the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository include:
 
-| Tool | Description |
-|------|-------------|
-| `rsc_find_and_snapshot` | Find a workload by name and take an on-demand snapshot |
-| `rsc_snapshot_and_wait` | Take a snapshot for a cloud-native workload and poll to completion |
-| `rsc_protection_gaps` | Out-of-compliance workloads and recent backup failures in one call |
+| Workflow | Description |
+|----------|-------------|
 | `rsc_threat_triage_for_workload` | Anomaly detection, threat monitoring, sensitive data exposure, and quarantine list for a workload |
 | `rsc_fileset_partial_success_detail` | Detailed reasons for fileset PARTIAL_SUCCESS backup events |
-| `rsc_get_active_sessions` | List users currently logged in to RSC |
 
 ### Workflow management
 

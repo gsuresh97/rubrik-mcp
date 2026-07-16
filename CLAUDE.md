@@ -47,7 +47,7 @@ export RSC_SERVICE_ACCOUNT_FILE=/path/to/service_account.json
 | Execution | Yes | `server.py` — `rsc_execute_operation`, `rsc_get_workloads`, `rsc_get_events`, etc. |
 | Workflows | Yes | `server.py` — `rsc_save_workflow`, `rsc_list_workflows`, `rsc_delete_workflow` |
 
-User-defined workflows are persisted to `~/.rubrik/workflows/` as JSON. Starter workflows are seeded there on first run from `_STARTER_WORKFLOWS` in `server.py`.
+User-defined workflows are persisted to `~/.rubrik/workflows/` as JSON. On startup, the server loads every JSON file in that directory and registers it as a named MCP tool.
 
 ## Write operations
 

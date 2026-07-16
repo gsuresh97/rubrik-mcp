@@ -515,7 +515,7 @@ def _register_workflow(spec: dict) -> None:
 
 
 def _load_workflows() -> None:
-    """Seed starter workflows if absent, then load and register all workflow specs."""
+    """Load and register all workflow specs from the workflows directory."""
     # Snapshot built-in tool names before any workflows register, so
     # rsc_save_workflow can detect collisions with a reserved name.
     global _BUILTIN_TOOL_NAMES
