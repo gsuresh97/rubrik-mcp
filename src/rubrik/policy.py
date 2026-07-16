@@ -45,7 +45,14 @@ def rubrik_dir() -> Path:
     return Path(override) if override else Path.home() / ".rubrik"
 
 
-POLICY_PATH = rubrik_dir() / "mcp-policy.json"
+def policy_path() -> Path:
+    """Live path to ``mcp-policy.json``, resolved at call time.
+
+    Deliberately a function, not a module-level constant: a constant would freeze
+    :func:`rubrik_dir` at import time and defeat the ``RUBRIK_MCP_CONFIG_DIR``
+    override for anything that runs after import.
+    """
+    return rubrik_dir() / "mcp-policy.json"
 
 # Curated write tools known to the server. Listed here so the seed template is
 # self-documenting and an operator sees every write tool they can toggle.
@@ -195,12 +202,17 @@ def _seed(path: Path) -> None:
     print(f"[rubrik] seeded default gating policy at {path}", file=sys.stderr, flush=True)
 
 
-def load(path: Path = POLICY_PATH, *, seed_if_absent: bool = True) -> Policy:
+def load(path: Path | None = None, *, seed_if_absent: bool = True) -> Policy:
     """Load and validate the gating policy.
+
+    ``path`` defaults to :func:`policy_path`, resolved at call time so
+    ``RUBRIK_MCP_CONFIG_DIR`` takes effect regardless of import order.
 
     Absent file -> seed the secure-default template (unless ``seed_if_absent`` is
     False) and return defaults. Present-but-malformed -> raise :class:`PolicyError`.
     """
+    if path is None:
+        path = policy_path()
     if not path.exists():
         if seed_if_absent:
             _seed(path)

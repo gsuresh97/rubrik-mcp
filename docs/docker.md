@@ -10,9 +10,18 @@ listener to expose or secure.
 docker build -t rubrik-mcp:0.1.0 .
 ```
 
-The image is `python:3.12-slim`-based, runs as a non-root user (`mcp`), and sets
+The image is `debian:12-slim`-based (Python 3.11), runs as a non-root user (`mcp`), and sets
 `RUBRIK_MCP_CONFIG_DIR=/config` so the policy file and saved workflows live at a stable,
-mountable path (see **Config & workflows** below).
+mountable path (see **Config & workflows** below). Dependencies are installed
+from the repo's hash-pinned `requirements.txt` with `pip --require-hashes`, so a
+build fails if any wheel's hash doesn't match the lockfile.
+
+> The commands here use `0.1.0` as the image tag for concreteness. Substitute the
+> version you're building — it's the single source of truth in
+> `src/rubrik/__init__.py`.
+
+A hardened, distroless variant is available via a build target — see
+[Hardened (GA) image](#hardened-ga-image) below.
 
 ## Package as a distributable artifact (no registry)
 
@@ -122,10 +131,18 @@ native install uses), so container and native runs share one config location:
 
 ## Hardened (GA) image
 
-For a minimal attack surface, a distroless multi-stage build is available at
-`Dockerfile.distroless` (`gcr.io/distroless/python3-debian12:nonroot`): no shell,
-no package manager. Build with `docker build -f Dockerfile.distroless -t rubrik-mcp:0.1.0-distroless .`.
-Trade-off: no `docker exec … sh` for debugging.
+For a minimal attack surface, the same `Dockerfile` has a `distroless` build
+target (`gcr.io/distroless/python3-debian12:nonroot`): no shell, no package
+manager. It shares the dependency-build stage with the default image, so the two
+can't drift apart. Build with:
+
+```bash
+docker build --target distroless -t rubrik-mcp:0.1.0-distroless .
+```
+
+Trade-off: no `docker exec … sh` for debugging. The `/config` directory is
+pre-created (uid 65532, matching distroless `nonroot`) in the build stage, so the
+anonymous-volume case works without a host mount, same as the default image.
 
 ## Uninstall
 

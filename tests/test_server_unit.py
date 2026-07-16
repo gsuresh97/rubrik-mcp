@@ -104,7 +104,7 @@ def test_load_workflows_skips_malformed(tmp_path, monkeypatch):
     }))
     (tmp_path / "bad.json").write_text("{ not valid json }")
 
-    monkeypatch.setattr(server, "_WORKFLOWS_DIR", tmp_path)
+    monkeypatch.setattr(server, "_workflows_dir", lambda: tmp_path)
     registered = []
     with patch.object(server, "_register_workflow", side_effect=lambda s: registered.append(s["name"])):
         server._load_workflows()          # must not raise on bad.json

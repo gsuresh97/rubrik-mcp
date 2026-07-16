@@ -41,6 +41,30 @@ def test_rubrik_home_seeds_policy_under_override(monkeypatch, tmp_path):
     assert pf.parent == tmp_path
 
 
+def test_policy_path_resolves_live(monkeypatch, tmp_path):
+    # policy_path() must reflect an env change made AFTER import — it is a
+    # function, not a module-level constant frozen at import time.
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path))
+    assert policy.policy_path() == tmp_path / "mcp-policy.json"
+
+
+def test_load_no_arg_honors_env_override_at_call_time(monkeypatch, tmp_path):
+    # The no-arg load() is exactly what main() calls. It must seed under the
+    # override set at call time, NOT a path frozen when policy.py was imported.
+    # This is the regression guard for the frozen-default-argument bug.
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path))
+    pol = policy.load()
+    assert (tmp_path / "mcp-policy.json").exists()
+    assert pol is not None
+
+
+def test_workflows_dir_honors_env_override(monkeypatch, tmp_path):
+    # server._workflows_dir() must resolve live too (same class of bug as the
+    # policy path): a frozen module constant would ignore this env change.
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path))
+    assert server._workflows_dir() == tmp_path / "workflows"
+
+
 # --------------------------------------------------------------------------- #
 # policy.py — load / seed / merge / validate
 # --------------------------------------------------------------------------- #
