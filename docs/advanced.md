@@ -12,15 +12,11 @@ These tools work entirely offline using a pre-built index of the RSC schema. No 
 
 | Tool | Description |
 |------|-------------|
-| `rsc_search_operations` | Find queries/mutations by keyword |
-| `rsc_describe_operation` | Full argument signature for an operation |
-| `rsc_describe_operation_full` | Operation signature with all input types expanded inline |
-| `rsc_search_fields` | Search for fields by name or description across all types |
+| `rsc_search_operations` | Find queries/mutations by keyword — run in parallel with `rsc_search_fields` |
+| `rsc_search_fields` | Find concepts by field semantics across the type graph — run in parallel with `rsc_search_operations` |
+| `rsc_describe_operation_full` | Operation signature with all input/enum types expanded inline |
 | `rsc_describe_type` | Fields/values for a GraphQL type |
 | `rsc_list_types_matching` | Filter type names by substring |
-| `rsc_list_queries` | All query names |
-| `rsc_list_mutations` | All mutation names |
-| `rsc_list_types` | All type names |
 
 ### Execution (credentials required)
 

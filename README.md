@@ -40,14 +40,10 @@ Raw GraphQL execution is read-only. If you ask for a write operation not covered
 
 | Tool | What it does |
 |------|-------------|
-| `rsc_search_operations` | Find queries and mutations by keyword |
-| `rsc_describe_operation` | Argument signature for a named operation |
-| `rsc_describe_operation_full` | Signature with all input types expanded inline |
+| `rsc_search_operations` | Find queries and mutations by keyword — run in parallel with `rsc_search_fields` |
+| `rsc_search_fields` | Find concepts by field semantics across the type graph — run in parallel with `rsc_search_operations` |
+| `rsc_describe_operation_full` | Argument signature with all input/enum types expanded inline |
 | `rsc_describe_type` | Fields and values for a GraphQL type |
-| `rsc_search_fields` | Search field names and descriptions across all types |
-| `rsc_list_queries` | All query names |
-| `rsc_list_mutations` | All mutation names |
-| `rsc_list_types` | All type names |
 | `rsc_list_types_matching` | Filter type names by substring |
 
 **Execution** — service account required

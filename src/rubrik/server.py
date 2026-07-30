@@ -4,12 +4,10 @@ Rubrik MCP — MCP server for Rubrik Security Cloud (RSC) GraphQL API.
 Exposes three categories of tools:
 
 Discovery (no credentials required):
-  - search_operations     — find queries/mutations by keyword
-  - describe_operation    — get full argument signature for an operation
+  - search_operations     — find queries/mutations by keyword (run in parallel with search_fields)
+  - search_fields         — find concepts by field semantics across the type graph (run in parallel with search_operations)
+  - describe_operation_full — full argument signature with all input/enum types expanded inline
   - describe_type         — get fields/values for a GraphQL type
-  - list_queries          — list all available query names
-  - list_mutations        — list all available mutation names
-  - list_types            — list all available type names
   - list_types_matching   — filter type names by substring
 
 Curated (requires RSC credentials):
@@ -47,8 +45,6 @@ from rsc import (
     describe_operation,
     describe_type,
     field_index_schema_version,
-    list_mutations,
-    list_queries,
     list_types,
     search_fields,
     search_operations,
@@ -696,10 +692,10 @@ def rsc_describe_type(name: str) -> dict:
 def rsc_describe_operation_full(name: str, operation_type: str, depth: int = 2) -> dict:
     """Get an operation's signature with all input types expanded inline.
 
-    Combines rsc_describe_operation + rsc_describe_type calls into one,
-    returning the operation args alongside the full definition of every
-    input/enum type referenced — recursively up to `depth` levels.
-    Use this instead of separate describe_operation + describe_type calls.
+    Returns an operation's argument signature with all input/enum types
+    expanded inline — recursively up to `depth` levels. Combines the
+    operation lookup and rsc_describe_type into one call so you have
+    everything needed to construct a correct query without guessing.
 
     Args:
         name: camelCase operation name (e.g. "azureNativeVirtualMachines").
