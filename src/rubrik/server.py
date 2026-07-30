@@ -352,12 +352,15 @@ _BASE_INSTRUCTIONS = (
     "If you know the operation name, call rsc_describe_operation_full first — it returns "
     "the full argument signature and all input/return types in one shot, so you can "
     "build a correct query on the first try. "
-    "If you don't know the operation name, call rsc_search_operations first, then "
-    "rsc_describe_operation_full on the best match. "
-    "If rsc_search_operations doesn't surface the right thing, try rsc_search_fields — "
-    "the relevant semantic may live on a nested field type rather than on the operation "
-    "itself (e.g. Group.activeUsers for 'who is logged in'). Once you find the type/field, "
-    "use rsc_search_operations or rsc_describe_type to trace which operations expose it. "
+    "If you don't know the operation name, run rsc_search_operations AND rsc_search_fields "
+    "in parallel — they are complementary, not sequential. "
+    "rsc_search_operations finds directly-callable entry points by name and description. "
+    "rsc_search_fields finds concepts buried in the type graph that don't surface in "
+    "operation names — health status, session data, and other state fields often live on "
+    "nested types (e.g. ClusterNode.hardwareHealth for cluster hardware health, "
+    "Group.activeUsers for who is logged in). "
+    "Call rsc_describe_operation_full on the best match from either search — it returns "
+    "the full argument signature and all input/enum types in one shot. "
     "Do not guess field names or attempt rsc_execute_operation without first verifying "
     "the query shape — guessing generates 400 errors and unnecessary API noise. "
     "When querying connection types (fields returning *Connection), always use 'nodes' "
@@ -674,21 +677,6 @@ def rsc_search_fields(search: str, limit: int = 10) -> list[dict]:
 
 
 @mcp.tool()
-def rsc_describe_operation(name: str, operation_type: str) -> dict:
-    """Get the full argument signature for a specific RSC operation.
-
-    Args:
-        name: camelCase operation name (e.g. "slaDomains", "vSphereVmNewConnection").
-        operation_type: "query" or "mutation".
-
-    Returns:
-        Dict with name, type, description, return_type, and args
-        (each arg has type and description).
-    """
-    return describe_operation(name, operation_type)
-
-
-@mcp.tool()
 def rsc_describe_type(name: str) -> dict:
     """Get the definition of a GraphQL type used in RSC operations.
 
@@ -702,36 +690,6 @@ def rsc_describe_type(name: str) -> dict:
           - types: [str] for unions
     """
     return describe_type(name)
-
-
-@mcp.tool()
-def rsc_list_queries() -> list[str]:
-    """List all available RSC GraphQL query names (camelCase).
-
-    Use rsc_search_operations to narrow down by keyword, or
-    rsc_describe_operation to get a specific operation's signature.
-    """
-    return list_queries()
-
-
-@mcp.tool()
-def rsc_list_mutations() -> list[str]:
-    """List all available RSC GraphQL mutation names (camelCase).
-
-    Use rsc_search_operations to narrow down by keyword, or
-    rsc_describe_operation to get a specific operation's signature.
-    """
-    return list_mutations()
-
-
-@mcp.tool()
-def rsc_list_types() -> list[str]:
-    """List all GraphQL type names available in the RSC schema.
-
-    There are thousands of types. Use rsc_list_types_matching to filter by
-    keyword, or rsc_describe_type to get a specific type's definition.
-    """
-    return list_types()
 
 
 @mcp.tool()
