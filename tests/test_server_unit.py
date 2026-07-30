@@ -119,7 +119,57 @@ def test_execute_workflow_single_step_returns_result():
         assert server._execute_workflow(spec) == [{"id": "wl-1"}]
 
 
-# ── 7. Discovery empty-search guards ─────────────────────────────────────────
+# ── 7. Tool surface ───────────────────────────────────────────────────────────
+
+def test_tool_surface():
+    """Assert the exact set of tools the server exposes.
+
+    Fails loudly when a tool is added or removed without updating this test,
+    ensuring the version is bumped and docs are kept in sync.
+    """
+    import asyncio
+    tools = asyncio.run(server.mcp.list_tools())
+    names = {t.name for t in tools}
+
+    expected = {
+        # Discovery
+        "rsc_search_operations",
+        "rsc_search_fields",
+        "rsc_describe_operation_full",
+        "rsc_describe_type",
+        "rsc_list_types_matching",
+        # Curated
+        "rsc_get_workloads",
+        "rsc_get_events",
+        "rsc_wait_for_job",
+        # Execution
+        "rsc_execute_operation",
+        # Workflows
+        "rsc_save_workflow",
+        "rsc_list_workflows",
+        "rsc_delete_workflow",
+    }
+
+    # Tools that were removed in 0.2.0 — must not reappear
+    removed = {
+        "rsc_describe_operation",
+        "rsc_list_queries",
+        "rsc_list_mutations",
+        "rsc_list_types",
+    }
+
+    assert names == expected, (
+        f"Tool surface changed.\n"
+        f"  Unexpected tools present: {names - expected}\n"
+        f"  Expected tools missing:   {expected - names}\n"
+        "Update this test, bump the version, and update docs."
+    )
+    assert not (names & removed), (
+        f"Removed tools reappeared: {names & removed}"
+    )
+
+
+# ── 8. Discovery empty-search guards ─────────────────────────────────────────
 
 def test_search_operations_rejects_empty():
     with pytest.raises(ValueError, match="must not be empty"):
