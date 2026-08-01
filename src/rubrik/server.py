@@ -1339,6 +1339,18 @@ _EVENT_QUERY = (
 )
 
 
+_HELP_SOURCES = {"KB_ARTICLES", "PRODUCT_DOCS", "KNOWN_ISSUES"}
+
+_HELP_QUERY = (
+    "query RscSearchHelp($first: Int, $filter: HelpContentSnippetsFilterInput!) {"
+    "  helpContentSnippets(first: $first, filter: $filter) {"
+    "    count"
+    "    nodes { id title description source link }"
+    "  }"
+    "}"
+)
+
+
 @mcp.tool()
 def rsc_search_help(
     query: str,
@@ -1363,30 +1375,21 @@ def rsc_search_help(
         A dict with `count` (total matches) and `results` (list of items with
         title, source, description, and link).
     """
+    if limit < 1:
+        raise ValueError("limit must be a positive integer")
+    if source and source not in _HELP_SOURCES:
+        raise ValueError(f"source must be one of {sorted(_HELP_SOURCES)}, got {source!r}")
+
     filter_input: dict[str, Any] = {
         "query": query,
-        "productDocumentationTypes": ["CONCEPT", "TASK", "REFERENCE", "TYPE_UNSPECIFIED"],
+        "productDocumentationTypes": ["CONCEPT", "TASK", "REFERENCE"],
         "initiator": "USER",
     }
     if source:
         filter_input["source"] = source
 
-    gql = """
-    query RscSearchHelp($first: Int, $filter: HelpContentSnippetsFilterInput!) {
-      helpContentSnippets(first: $first, filter: $filter) {
-        count
-        nodes {
-          id
-          title
-          description
-          source
-          link
-        }
-      }
-    }
-    """
     client = _mcp_rsc_client()
-    raw = client.execute(gql, variables={"first": limit, "filter": filter_input})
+    raw = client.execute(_HELP_QUERY, variables={"first": limit, "filter": filter_input})
     snippets = _data_or_raise(raw, "helpContentSnippets")
     return {
         "count": snippets.get("count", 0),

@@ -142,6 +142,7 @@ def test_tool_surface():
         "rsc_get_workloads",
         "rsc_get_events",
         "rsc_wait_for_job",
+        "rsc_search_help",
         # Execution
         "rsc_execute_operation",
         # Workflows
