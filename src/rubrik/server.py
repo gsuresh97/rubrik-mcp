@@ -1340,6 +1340,61 @@ _EVENT_QUERY = (
 
 
 @mcp.tool()
+def rsc_search_help(
+    query: str,
+    source: str | None = None,
+    limit: int = 10,
+) -> dict:
+    """Search Rubrik KB articles, product documentation, and known issues.
+
+    Use when: an RSC event or workload has a failure/error message, the user
+    asks a troubleshooting or "how do I" question, or an error code (e.g.
+    RBK91030123) is present. Always call this before answering from memory —
+    KB articles reflect the current product state. Results include title,
+    description snippet, source type, and a direct link to the full article.
+
+    Args:
+        query: Free-text search string (e.g. "ransomware recovery", "SLA not applying").
+        source: Limit results to one source. One of: KB_ARTICLES, PRODUCT_DOCS,
+            KNOWN_ISSUES. Omit to search all sources.
+        limit: Maximum number of results to return. Default 10.
+
+    Returns:
+        A dict with `count` (total matches) and `results` (list of items with
+        title, source, description, and link).
+    """
+    filter_input: dict[str, Any] = {
+        "query": query,
+        "productDocumentationTypes": ["CONCEPT", "TASK", "REFERENCE", "TYPE_UNSPECIFIED"],
+        "initiator": "USER",
+    }
+    if source:
+        filter_input["source"] = source
+
+    gql = """
+    query RscSearchHelp($first: Int, $filter: HelpContentSnippetsFilterInput!) {
+      helpContentSnippets(first: $first, filter: $filter) {
+        count
+        nodes {
+          id
+          title
+          description
+          source
+          link
+        }
+      }
+    }
+    """
+    client = _mcp_rsc_client()
+    raw = client.execute(gql, variables={"first": limit, "filter": filter_input})
+    snippets = _data_or_raise(raw, "helpContentSnippets")
+    return {
+        "count": snippets.get("count", 0),
+        "results": snippets.get("nodes", []),
+    }
+
+
+@mcp.tool()
 def rsc_get_events(
     last_hours: float = 24,
     workload_id: str | None = None,
