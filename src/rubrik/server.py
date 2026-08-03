@@ -13,6 +13,7 @@ Discovery (no credentials required):
 Curated (requires RSC credentials):
   - get_workloads         — list workloads with protection, compliance, usage, and backup status
   - get_events            — get recent events/activity, always scoped to a time window
+  - search_help           — search KB articles, product docs, and known issues by keyword
   - take_on_demand_snapshot — trigger a backup, dispatching to the right mutation by type
 
 Execution (requires RSC credentials via env vars or ~/.rsc/config.json):
@@ -1341,6 +1342,9 @@ _EVENT_QUERY = (
 
 _HELP_SOURCES = {"KB_ARTICLES", "PRODUCT_DOCS", "KNOWN_ISSUES"}
 
+# Deliberately omits `pageInfo`: RSCClient.execute() auto-paginates any field
+# exposing both `nodes` and `pageInfo`, which would walk the full result set
+# `first` records at a time. Search results are intentionally single-page.
 _HELP_QUERY = (
     "query RscSearchHelp($first: Int, $filter: HelpContentSnippetsFilterInput!) {"
     "  helpContentSnippets(first: $first, filter: $filter) {"
@@ -1372,11 +1376,14 @@ def rsc_search_help(
         limit: Maximum number of results to return. Default 10.
 
     Returns:
-        A dict with `count` (total matches) and `results` (list of items with
-        title, source, description, and link).
+        A dict with `count` (total matches), `returned` (how many results are in
+        this response), `truncated` (True when more results exist than were returned),
+        and `results` (list of items with title, source, description, and link).
+        Report `count` for "how many" questions, not `len(results)`. Note: `link`
+        may be null for some results.
     """
-    if limit < 1:
-        raise ValueError("limit must be a positive integer")
+    if limit < 0:
+        raise ValueError("limit must be a non-negative integer")
     if source and source not in _HELP_SOURCES:
         raise ValueError(f"source must be one of {sorted(_HELP_SOURCES)}, got {source!r}")
 
@@ -1391,10 +1398,8 @@ def rsc_search_help(
     client = _mcp_rsc_client()
     raw = client.execute(_HELP_QUERY, variables={"first": limit, "filter": filter_input})
     snippets = _data_or_raise(raw, "helpContentSnippets")
-    return {
-        "count": snippets.get("count", 0),
-        "results": snippets.get("nodes", []),
-    }
+    nodes = snippets.get("nodes", [])
+    return _paginated_result(snippets, nodes, "results")
 
 
 @mcp.tool()

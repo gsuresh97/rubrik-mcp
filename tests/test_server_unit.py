@@ -218,6 +218,18 @@ def test_onboard_host_unsupported_type():
         with pytest.raises(ValueError, match="Unsupported host_type"):
             server.rsc_onboard_host(target="host.example", host_type="BOGUS")
 
+def test_search_help_rejects_negative_limit():
+    with patch.object(server, "RSCClient"):
+        with pytest.raises(ValueError, match="limit must be"):
+            server.rsc_search_help(query="ransomware", limit=-1)
+
+
+def test_search_help_rejects_unknown_source():
+    with patch.object(server, "RSCClient"):
+        with pytest.raises(ValueError, match="source must be one of"):
+            server.rsc_search_help(query="ransomware", source="BLOG_POSTS")
+
+
 def test_assign_sla_requires_sla_id_for_protect():
     with patch.object(server, "RSCClient"):
         with pytest.raises(ValueError, match="sla_id is required"):
