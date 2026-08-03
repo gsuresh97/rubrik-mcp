@@ -53,6 +53,7 @@ Raw GraphQL execution is read-only. If you ask for a write operation not covered
 | `rsc_execute_operation` | Run any raw GraphQL query (mutations generate code instead) |
 | `rsc_get_workloads` | Workloads with protection status, compliance, and backup history |
 | `rsc_get_events` | Recent events and activity, always time-scoped |
+| `rsc_search_help` | Search KB articles, product docs, and known issues by keyword |
 | `rsc_take_on_demand_snapshot` | Trigger a backup for a workload and return the job ID |
 | `rsc_wait_for_job` | Poll a job until completion |
 | `rsc_onboard_host` | Register a physical or virtual host |

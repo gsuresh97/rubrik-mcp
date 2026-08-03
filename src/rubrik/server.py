@@ -13,6 +13,7 @@ Discovery (no credentials required):
 Curated (requires RSC credentials):
   - get_workloads         — list workloads with protection, compliance, usage, and backup status
   - get_events            — get recent events/activity, always scoped to a time window
+  - search_help           — search KB articles, product docs, and known issues by keyword
   - take_on_demand_snapshot — trigger a backup, dispatching to the right mutation by type
 
 Execution (requires RSC credentials via env vars or ~/.rsc/config.json):
@@ -1337,6 +1338,68 @@ _EVENT_QUERY = (
     "sortBy: $sortBy, sortOrder: $sortOrder) { "
     f"count nodes {{ {_EVENT_FIELDS} }} pageInfo {{ hasNextPage endCursor }} }} }}"
 )
+
+
+_HELP_SOURCES = {"KB_ARTICLES", "PRODUCT_DOCS", "KNOWN_ISSUES"}
+
+# Deliberately omits `pageInfo`: RSCClient.execute() auto-paginates any field
+# exposing both `nodes` and `pageInfo`, which would walk the full result set
+# `first` records at a time. Search results are intentionally single-page.
+_HELP_QUERY = (
+    "query RscSearchHelp($first: Int, $filter: HelpContentSnippetsFilterInput!) {"
+    "  helpContentSnippets(first: $first, filter: $filter) {"
+    "    count"
+    "    nodes { id title description source link }"
+    "  }"
+    "}"
+)
+
+
+@mcp.tool()
+def rsc_search_help(
+    query: str,
+    source: str | None = None,
+    limit: int = 10,
+) -> dict:
+    """Search Rubrik KB articles, product documentation, and known issues.
+
+    Use when: an RSC event or workload has a failure/error message, the user
+    asks a troubleshooting or "how do I" question, or an error code (e.g.
+    RBK91030123) is present. Always call this before answering from memory —
+    KB articles reflect the current product state. Results include title,
+    description snippet, source type, and a direct link to the full article.
+
+    Args:
+        query: Free-text search string (e.g. "ransomware recovery", "SLA not applying").
+        source: Limit results to one source. One of: KB_ARTICLES, PRODUCT_DOCS,
+            KNOWN_ISSUES. Omit to search all sources.
+        limit: Maximum number of results to return. Default 10.
+
+    Returns:
+        A dict with `count` (total matches), `returned` (how many results are in
+        this response), `truncated` (True when more results exist than were returned),
+        and `results` (list of items with title, source, description, and link).
+        Report `count` for "how many" questions, not `len(results)`. Note: `link`
+        may be null for some results.
+    """
+    if limit < 0:
+        raise ValueError("limit must be a non-negative integer")
+    if source and source not in _HELP_SOURCES:
+        raise ValueError(f"source must be one of {sorted(_HELP_SOURCES)}, got {source!r}")
+
+    filter_input: dict[str, Any] = {
+        "query": query,
+        "productDocumentationTypes": ["CONCEPT", "TASK", "REFERENCE"],
+        "initiator": "USER",
+    }
+    if source:
+        filter_input["source"] = source
+
+    client = _mcp_rsc_client()
+    raw = client.execute(_HELP_QUERY, variables={"first": limit, "filter": filter_input})
+    snippets = _data_or_raise(raw, "helpContentSnippets")
+    nodes = snippets.get("nodes", [])
+    return _paginated_result(snippets, nodes, "results")
 
 
 @mcp.tool()

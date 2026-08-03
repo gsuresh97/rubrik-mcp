@@ -25,6 +25,7 @@ These tools work entirely offline using a pre-built index of the RSC schema. No 
 | `rsc_execute_operation` | Run any raw GraphQL query (mutations are not supported — Claude generates Python code instead) |
 | `rsc_get_workloads` | List workloads with protection, compliance, usage, and backup status |
 | `rsc_get_events` | Get recent events and activity, always scoped to a time window |
+| `rsc_search_help` | Search KB articles, product documentation, and known issues by keyword |
 | `rsc_take_on_demand_snapshot` | Trigger an on-demand backup for a workload |
 | `rsc_wait_for_job` | Poll a backup job until it completes |
 | `rsc_assign_sla` | Assign an SLA domain to one or more workloads |
