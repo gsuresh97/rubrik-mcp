@@ -208,6 +208,34 @@ def test_take_on_demand_snapshot_unsupported_type():
         with pytest.raises(ValueError, match="Unsupported objectType"):
             server.rsc_take_on_demand_snapshot(workload_id="x", object_type="NotAType")
 
+def test_take_on_demand_snapshot_cdm_returns_cluster_id():
+    cluster_lookup = {"data": {"snappableConnection": {"nodes": [{"cluster": {"id": "cluster-uuid-123"}}]}}}
+    mutation_result = {"data": {"vsphereOnDemandSnapshot": {"id": "job-id-456:::0", "status": "QUEUED"}}}
+    inst = MagicMock()
+    inst.execute.side_effect = [cluster_lookup, mutation_result]
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_take_on_demand_snapshot(workload_id="vm-fid", object_type="VmwareVirtualMachine")
+    assert result["cluster_id"] == "cluster-uuid-123"
+    assert result["id"] == "job-id-456:::0"
+
+def test_take_on_demand_snapshot_cdm_cluster_lookup_failure_is_nonfatal():
+    inst = MagicMock()
+    inst.execute.side_effect = [
+        RuntimeError("lookup failed"),
+        {"data": {"vsphereOnDemandSnapshot": {"id": "job-id:::0", "status": "QUEUED"}}},
+    ]
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_take_on_demand_snapshot(workload_id="vm-fid", object_type="VmwareVirtualMachine")
+    assert "cluster_id" not in result
+    assert result["id"] == "job-id:::0"
+
+def test_take_on_demand_snapshot_cloud_native_has_no_cluster_id():
+    inst = MagicMock()
+    inst.execute.return_value = {"data": {"takeOnDemandSnapshot": {"taskchainUuids": [], "errors": []}}}
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_take_on_demand_snapshot(workload_id="vm-fid", object_type="AzureNativeVm")
+    assert "cluster_id" not in result
+
 def test_onboard_host_requires_cluster_uuid():
     with patch.object(server, "RSCClient"):
         with pytest.raises(ValueError, match="cluster_uuid is required"):

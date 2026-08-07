@@ -199,12 +199,11 @@ _STARTER_WORKFLOWS: list[dict] = [
         "description": (
             "Take an on-demand snapshot for a cloud-native workload and poll until it completes.\n\n"
             "Pass args: {\"workload_id\": \"<fid>\", \"object_type\": \"<type>\"}\n\n"
-            "Use rsc_get_workloads to find a workload's fid and objectType. "
-            "Supported cloud-native types: AzureNativeVm, AwsNativeEc2Instance, "
-            "GcpNativeGCEInstance, AwsNativeRdsInstance, and others. "
-            "For CDM workloads (VmwareVirtualMachine, NutanixVirtualMachine, etc.) "
-            "call rsc_take_on_demand_snapshot and rsc_wait_for_job directly — "
-            "CDM jobs require a cluster_id that cannot be threaded through this workflow."
+            "Use rsc_get_workloads to find a workload's fid and objectType. Supported cloud-native "
+            "types: AzureNativeVm, AwsNativeEc2Instance, GcpNativeGCEInstance, AwsNativeRdsInstance, "
+            "and others. For CDM workloads (VmwareVirtualMachine, NutanixVirtualMachine, etc.) "
+            "use rsc_find_and_snapshot or call rsc_take_on_demand_snapshot and rsc_wait_for_job "
+            "directly — rsc_take_on_demand_snapshot returns cluster_id in its response for CDM types."
         ),
         "steps": [
             {
@@ -1111,6 +1110,26 @@ def rsc_take_on_demand_snapshot(
         return _data_or_raise(raw, "takeOnDemandSnapshot")
 
     if object_type in _CDM_TYPE_MAP:
+        # Look up the cluster UUID before triggering so the caller has it for rsc_wait_for_job.
+        # The CDM mutation only returns job id + status; without this the caller has no
+        # legitimate source for cluster_id and would have to guess.
+        cluster_id = None
+        try:
+            cluster_q = (
+                "query GetCluster($fid: [UUID!]) { "
+                "snappableConnection(filter: {objectFid: $fid}) { "
+                "nodes { cluster { id } } } }"
+            )
+            cluster_raw = _data_or_raise(
+                client.execute(cluster_q, variables={"fid": [workload_id]}),
+                "snappableConnection",
+            )
+            nodes = cluster_raw.get("nodes", [])
+            if nodes:
+                cluster_id = (nodes[0].get("cluster") or {}).get("id")
+        except Exception as exc:
+            print(f"[rubrik] cluster_id lookup failed for {workload_id}: {exc}", file=sys.stderr)
+
         mutation_name, needs_config = _CDM_TYPE_MAP[object_type]
         config_clause = ", config: {}" if needs_config else ""
         safe_id = json.dumps(workload_id)
@@ -1119,7 +1138,10 @@ def rsc_take_on_demand_snapshot(
             "{ id status } }"
         )
         raw = client.execute(mutation)
-        return _data_or_raise(raw, mutation_name)
+        result = _data_or_raise(raw, mutation_name)
+        if cluster_id:
+            result["cluster_id"] = cluster_id
+        return result
 
     supported = sorted(_CLOUD_NATIVE_TYPES | set(_CDM_TYPE_MAP))
     raise ValueError(
@@ -1488,8 +1510,9 @@ code needed from the caller.
 
 How to get job_id and cluster_id:
   - CDM workloads: job_id = the `id` field from the AsyncRequestStatus
-    returned by the snapshot mutation. cluster_id = `cluster.id` from
-    rsc_get_workloads (required for CDM).
+    returned by the snapshot mutation. cluster_id = the `cluster_id` field
+    returned by rsc_take_on_demand_snapshot (included automatically for CDM
+    types). Falls back to cluster.id from rsc_get_workloads if needed.
   - Cloud-native workloads: job_id = `taskchainUuid` from
     `taskchainUuids[0].taskchainUuid` in the mutation response.
     cluster_id is not needed.
