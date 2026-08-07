@@ -983,6 +983,13 @@ def rsc_get_workloads(
     search_term: str | None = None,
     compliance_status: str | None = None,
     sla_time_range: str | None = None,
+    sla_id: str | None = None,
+    cluster_id: str | None = None,
+    object_fids: list[str] | None = None,
+    object_state: str | None = None,
+    org_id: str | None = None,
+    is_local: bool | None = None,
+    excluded_object_types: list[str] | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
     limit: int | None = None,
@@ -1001,17 +1008,42 @@ def rsc_get_workloads(
     Args:
         object_type: Filter by workload type, e.g. "NutanixVirtualMachine",
             "VmwareVirtualMachine", "AzureNativeVm", "AwsNativeEc2Instance".
+            Cannot be combined with excluded_object_types.
         protection_status: One of "Protected", "NoSla", "DoNotProtect".
             Omit to return all statuses.
         search_term: Filter by name substring.
-        compliance_status: One of "IN_COMPLIANCE", "OUT_OF_COMPLIANCE",
-            "NOT_APPLICABLE", "EMPTY", "NOT_AVAILABLE", "UNPROTECTED".
+        compliance_status: Filter by compliance state. One of:
+            "IN_COMPLIANCE" — protected, active, no missed snapshots.
+            "OUT_OF_COMPLIANCE" — protected, active, one or more missed snapshots.
+            "UNPROTECTED" — no effective SLA assigned.
+            "NOT_APPLICABLE" — protected but relic or archived; compliance not evaluated.
+            "NOT_AVAILABLE" — protected and active but compliance could not be computed
+                (SLA engine error or unmet precondition).
+            "EMPTY" — report sync has not yet produced a value for this object;
+                data is absent, not wrong. Indicates the cluster's report sync is lagging.
+            Note: "NULL" also exists in the underlying store but is excluded from this
+                filter — it indicates a workload with no compliance status object at all
+                (distinct from EMPTY) and is not used in practice by the ETL pipeline.
         sla_time_range: Compliance window to evaluate. Defaults to the entire
             protection lifetime of each workload, which often overstates
             violations. Prefer a shorter window for actionable results.
             One of: "LAST_SNAPSHOT", "LAST_2_SNAPSHOTS", "LAST_3_SNAPSHOTS",
             "LAST_24_HOURS", "PAST_7_DAYS", "PAST_30_DAYS", "PAST_90_DAYS",
             "PAST_365_DAYS", "SINCE_PROTECTION".
+        sla_id: Filter to workloads assigned to a specific SLA Domain ID.
+            Use this to answer "list all VMs in SLA X" — pass the SLA's UUID.
+            Matches on effective SLA (inherited or directly assigned).
+        cluster_id: Filter to workloads managed by a specific Rubrik cluster UUID.
+        object_fids: Filter to specific workload FIDs (list of UUIDs). Use to
+            fetch details for a known set of workloads in a single call.
+        object_state: Filter by lifecycle state. One of: "ACTIVE", "ARCHIVED",
+            "RELIC", "NOT_SPECIFIED". Use "RELIC" to find decommissioned workloads
+            that still have snapshots.
+        org_id: Filter to workloads belonging to a specific organization UUID.
+        is_local: True to return only local workloads; False for remote/replicated
+            only. Omit to return both.
+        excluded_object_types: List of workload types to exclude. Cannot be
+            combined with object_type.
         sort_by: Field to sort by, e.g. "MissedSnapshots", "Name",
             "LastSnapshot", "ComplianceStatus", "SlaDomainName".
         sort_order: "ASC" or "DESC".
@@ -1027,12 +1059,19 @@ def rsc_get_workloads(
             "how many" questions, not `len(workloads)`.
           - workloads: the list of workload records.
     """
+    _VALID_OBJECT_STATES = {"ACTIVE", "ARCHIVED", "RELIC", "NOT_SPECIFIED"}
     if limit is not None and limit < 0:
         raise ValueError("limit must be a non-negative integer")
+    if object_type and excluded_object_types:
+        raise ValueError("object_type and excluded_object_types cannot both be specified")
+    if object_state and object_state not in _VALID_OBJECT_STATES:
+        raise ValueError(f"object_state must be one of {sorted(_VALID_OBJECT_STATES)}, got {object_state!r}")
 
     filter_input: dict[str, Any] = {}
     if object_type:
         filter_input["objectType"] = [object_type]
+    if excluded_object_types:
+        filter_input["excludedObjectTypes"] = excluded_object_types
     if protection_status:
         filter_input["protectionStatus"] = [protection_status]
     if search_term:
@@ -1041,6 +1080,18 @@ def rsc_get_workloads(
         filter_input["complianceStatus"] = [compliance_status]
     if sla_time_range:
         filter_input["slaTimeRange"] = sla_time_range
+    if sla_id:
+        filter_input["slaDomain"] = {"id": [sla_id]}
+    if cluster_id:
+        filter_input["cluster"] = {"id": [cluster_id]}
+    if object_fids:
+        filter_input["objectFid"] = object_fids
+    if object_state:
+        filter_input["objectState"] = [object_state]
+    if org_id:
+        filter_input["orgId"] = [org_id]
+    if is_local is not None:
+        filter_input["isLocal"] = is_local
 
     client = _mcp_rsc_client()
     variables: dict[str, Any] = {"filter": filter_input or None}
@@ -1120,15 +1171,16 @@ def rsc_take_on_demand_snapshot(
                 "snappableConnection(filter: {objectFid: $fid}) { "
                 "nodes { cluster { id } } } }"
             )
-            cluster_raw = _data_or_raise(
-                client.execute(cluster_q, variables={"fid": [workload_id]}),
-                "snappableConnection",
+            cluster_raw = client.execute(cluster_q, variables={"fid": [workload_id]})
+            nodes = (
+                (cluster_raw.get("data") or {})
+                .get("snappableConnection", {})
+                .get("nodes", [])
             )
-            nodes = cluster_raw.get("nodes", [])
             if nodes:
                 cluster_id = (nodes[0].get("cluster") or {}).get("id")
-        except Exception as exc:
-            print(f"[rubrik] cluster_id lookup failed for {workload_id}: {exc}", file=sys.stderr)
+        except Exception:
+            pass  # non-fatal; caller can use rsc_get_workloads to find cluster_id
 
         mutation_name, needs_config = _CDM_TYPE_MAP[object_type]
         config_clause = ", config: {}" if needs_config else ""
