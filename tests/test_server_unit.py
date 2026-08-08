@@ -262,3 +262,23 @@ def test_assign_sla_requires_sla_id_for_protect():
     with patch.object(server, "RSCClient"):
         with pytest.raises(ValueError, match="sla_id is required"):
             server.rsc_assign_sla(object_ids=["fid-1"])          # default assign_type=protectWithSlaId
+
+# ── 10. rsc_get_workloads filter validation ───────────────────────────────────
+
+def test_get_workloads_rejects_invalid_object_state():
+    with patch.object(server, "RSCClient"):
+        with pytest.raises(ValueError, match="object_state must be one of"):
+            server.rsc_get_workloads(object_state="BOGUS")
+
+def test_get_workloads_rejects_object_type_with_excluded():
+    with patch.object(server, "RSCClient"):
+        with pytest.raises(ValueError, match="cannot both be specified"):
+            server.rsc_get_workloads(object_type="VmwareVirtualMachine", excluded_object_types=["NutanixVirtualMachine"])
+
+def test_get_workloads_builds_sla_filter():
+    inst = MagicMock()
+    inst.execute.return_value = {"data": {"snappableConnection": {"count": 0, "nodes": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
+    with patch.object(server, "RSCClient", return_value=inst):
+        server.rsc_get_workloads(sla_id="sla-uuid-123")
+    call_vars = inst.execute.call_args[1]["variables"]
+    assert call_vars["filter"]["slaDomain"] == {"id": ["sla-uuid-123"]}
