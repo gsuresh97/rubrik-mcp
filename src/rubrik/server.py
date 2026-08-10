@@ -1171,16 +1171,15 @@ def rsc_take_on_demand_snapshot(
                 "snappableConnection(filter: {objectFid: $fid}) { "
                 "nodes { cluster { id } } } }"
             )
-            cluster_raw = client.execute(cluster_q, variables={"fid": [workload_id]})
-            nodes = (
-                (cluster_raw.get("data") or {})
-                .get("snappableConnection", {})
-                .get("nodes", [])
+            cluster_raw = _data_or_raise(
+                client.execute(cluster_q, variables={"fid": [workload_id]}),
+                "snappableConnection",
             )
+            nodes = cluster_raw.get("nodes", [])
             if nodes:
                 cluster_id = (nodes[0].get("cluster") or {}).get("id")
-        except Exception:
-            pass  # non-fatal; caller can use rsc_get_workloads to find cluster_id
+        except Exception as exc:
+            print(f"[rubrik] cluster_id lookup failed for {workload_id}: {exc}", file=sys.stderr)
 
         mutation_name, needs_config = _CDM_TYPE_MAP[object_type]
         config_clause = ", config: {}" if needs_config else ""
