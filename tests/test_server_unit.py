@@ -133,14 +133,14 @@ def test_tool_surface():
 
     expected = {
         # Discovery
-        "rsc_search_operations",
-        "rsc_search_fields",
+        "rsc_search_schema",
         "rsc_describe_operation_full",
         "rsc_describe_type",
-        "rsc_list_types_matching",
         # Curated
         "rsc_get_workloads",
         "rsc_get_events",
+        "rsc_get_clusters",
+        "rsc_get_sla_domains",
         "rsc_wait_for_job",
         "rsc_search_help",
         # Execution
@@ -151,34 +151,57 @@ def test_tool_surface():
         "rsc_delete_workflow",
     }
 
-    # Tools that were removed in 0.2.0 — must not reappear
-    removed = {
-        "rsc_describe_operation",
-        "rsc_list_queries",
-        "rsc_list_mutations",
-        "rsc_list_types",
-    }
-
     assert names == expected, (
         f"Tool surface changed.\n"
         f"  Unexpected tools present: {names - expected}\n"
         f"  Expected tools missing:   {expected - names}\n"
         "Update this test, bump the version, and update docs."
     )
-    assert not (names & removed), (
-        f"Removed tools reappeared: {names & removed}"
-    )
 
 
-# ── 8. Discovery empty-search guards ─────────────────────────────────────────
+# ── 8. Discovery empty-search guard ──────────────────────────────────────────
 
-def test_search_operations_rejects_empty():
+def test_search_schema_rejects_empty():
     with pytest.raises(ValueError, match="must not be empty"):
-        server.rsc_search_operations("")
+        server.rsc_search_schema("")
 
-def test_search_fields_rejects_blank():
+def test_search_schema_rejects_blank():
     with pytest.raises(ValueError, match="must not be empty"):
-        server.rsc_search_fields("   ")
+        server.rsc_search_schema("   ")
+
+
+def test_search_schema_dedup_and_source_tagging():
+    """ops branch wins over types branch for same op; types branch uses op name as key."""
+    op_a = {"name": "clusters", "type": "query", "description": "list clusters", "return_type": "ClusterConnection", "score": 0.9}
+
+    def fake_search_ops(q, t):
+        if q.lower() in ("cluster", "clusters"):
+            return [op_a]
+        return []
+
+    fake_types = [{"ops": ["clusters"], "score": 0.3}]
+
+    with patch.object(server, "search_operations", side_effect=fake_search_ops):
+        with patch.object(server, "search_fields", return_value=[]):
+            with patch.object(server, "_SEARCH_TYPES_AVAILABLE", True):
+                with patch.object(server, "_search_types", return_value=fake_types, create=True):
+                    result = server.rsc_search_schema("cluster")
+
+    ops_by_name = {o["name"]: o for o in result["operations"]}
+    assert list(ops_by_name.keys()).count("clusters") == 1
+    assert ops_by_name["clusters"]["source"] == "ops"
+    assert ops_by_name["clusters"]["score"] == 0.9
+
+
+def test_search_schema_field_branch_skips_empty_type():
+    """Field results with empty type string must not trigger downstream searches."""
+    mock_search_ops = MagicMock(return_value=[])
+    with patch.object(server, "search_operations", mock_search_ops):
+        with patch.object(server, "search_fields", return_value=[{"type": "", "field": "orphan"}]):
+            with patch.object(server, "_SEARCH_TYPES_AVAILABLE", False):
+                server.rsc_search_schema("orphan")
+    # search_operations called once for the top-level ops search, never for the empty type
+    mock_search_ops.assert_called_once_with("orphan", "all")
 
 
 # ── 8. rsc_execute_operation gate ────────────────────────────────────────────
@@ -282,3 +305,179 @@ def test_get_workloads_builds_sla_filter():
         server.rsc_get_workloads(sla_id="sla-uuid-123")
     call_vars = inst.execute.call_args[1]["variables"]
     assert call_vars["filter"]["slaDomain"] == {"id": ["sla-uuid-123"]}
+
+
+
+# ── 10. rsc_get_clusters ──────────────────────────────────────────────────────
+
+def test_get_clusters_rejects_negative_limit():
+    with patch.object(server, "RSCClient"):
+        with pytest.raises(ValueError, match="limit must be"):
+            server.rsc_get_clusters(limit=-1)
+
+
+def test_get_clusters_returns_structured_result():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "allClusterConnection": {
+                "count": 1,
+                "nodes": [{"id": "c1", "name": "prod-cluster", "status": "Connected"}],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_get_clusters()
+    assert result["count"] == 1
+    assert result["returned"] == 1
+    assert result["truncated"] is False
+    assert result["clusters"][0]["name"] == "prod-cluster"
+
+
+def test_get_clusters_applies_status_filter():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "allClusterConnection": {
+                "count": 0,
+                "nodes": [],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        server.rsc_get_clusters(status="Disconnected")
+    call_kwargs = inst.execute.call_args
+    variables = call_kwargs[1].get("variables") or call_kwargs[0][1]
+    assert variables["filter"]["connectionState"] == ["Disconnected"]
+
+
+def test_get_clusters_caps_limit_at_100():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "allClusterConnection": {
+                "count": 0,
+                "nodes": [],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        server.rsc_get_clusters(limit=999)
+    call_kwargs = inst.execute.call_args
+    # max_records is passed as a kwarg; confirm it is capped at 100
+    max_records = call_kwargs[1].get("max_records")
+    assert max_records == 100
+
+
+# ── 11. rsc_get_sla_domains ───────────────────────────────────────────────────
+
+def test_get_sla_domains_rejects_negative_limit():
+    with patch.object(server, "RSCClient"):
+        with pytest.raises(ValueError, match="limit must be"):
+            server.rsc_get_sla_domains(limit=-1)
+
+
+def test_get_sla_domains_returns_structured_result():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "slaDomains": {
+                "count": 2,
+                "nodes": [
+                    {"id": "s1", "name": "Gold", "isRetentionLockedSla": True},
+                    {"id": "s2", "name": "Silver", "isRetentionLockedSla": False},
+                ],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_get_sla_domains()
+    assert result["count"] == 2
+    assert result["returned"] == 2
+    assert len(result["sla_domains"]) == 2
+
+
+def test_get_sla_domains_client_side_retention_lock_filter():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "slaDomains": {
+                "count": 2,
+                "nodes": [
+                    {"id": "s1", "name": "Gold", "isRetentionLockedSla": True},
+                    {"id": "s2", "name": "Silver", "isRetentionLockedSla": False},
+                ],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_get_sla_domains(is_retention_locked=True)
+    assert result["returned"] == 1
+    assert result["sla_domains"][0]["id"] == "s1"
+
+
+def test_get_sla_domains_name_filter_builds_correct_payload():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "slaDomains": {
+                "count": 0,
+                "nodes": [],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        server.rsc_get_sla_domains(name_contains="Gold", cluster_id="uuid-1")
+    call_kwargs = inst.execute.call_args
+    variables = call_kwargs[1].get("variables") or call_kwargs[0][1]
+    filter_list = variables["filter"]
+    fields = {f["field"]: f for f in filter_list}
+    assert fields["NAME"]["text"] == "Gold"
+    assert fields["CLUSTER_UUID"]["textList"] == ["uuid-1"]
+
+
+def test_get_sla_domains_caps_limit_at_200():
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "slaDomains": {
+                "count": 0,
+                "nodes": [],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        server.rsc_get_sla_domains(limit=9999)
+    call_kwargs = inst.execute.call_args
+    max_records = call_kwargs[1].get("max_records")
+    assert max_records == 200
+
+
+def test_get_sla_domains_retention_lock_fetches_all_pages():
+    """is_retention_locked must not cap fetch — matches beyond limit would be missed."""
+    inst = MagicMock()
+    inst.execute.return_value = {
+        "data": {
+            "slaDomains": {
+                "count": 10,
+                "nodes": [
+                    {"id": f"s{i}", "name": f"SLA-{i}", "isRetentionLockedSla": i >= 8}
+                    for i in range(10)
+                ],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            }
+        }
+    }
+    with patch.object(server, "RSCClient", return_value=inst):
+        result = server.rsc_get_sla_domains(is_retention_locked=True, limit=5)
+    call_kwargs = inst.execute.call_args
+    assert call_kwargs[1].get("max_records") is None
+    assert result["returned"] == 2
+    assert {d["id"] for d in result["sla_domains"]} == {"s8", "s9"}

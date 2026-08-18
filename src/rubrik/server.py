@@ -50,6 +50,11 @@ from rsc import (
     search_fields,
     search_operations,
 )
+try:
+    from rsc import search_types as _search_types
+    _SEARCH_TYPES_AVAILABLE = True
+except ImportError:
+    _SEARCH_TYPES_AVAILABLE = False
 
 from rubrik import policy
 
@@ -348,14 +353,9 @@ _BASE_INSTRUCTIONS = (
     "If you know the operation name, call rsc_describe_operation_full first — it returns "
     "the full argument signature and all input/return types in one shot, so you can "
     "build a correct query on the first try. "
-    "If you don't know the operation name, run rsc_search_operations AND rsc_search_fields "
-    "in parallel — they are complementary, not sequential. "
-    "rsc_search_operations finds directly-callable entry points by name and description. "
-    "rsc_search_fields finds concepts buried in the type graph that don't surface in "
-    "operation names — health status, session data, and other state fields often live on "
-    "nested types (e.g. ClusterNode.hardwareHealth for cluster hardware health, "
-    "Group.activeUsers for who is logged in). "
-    "Call rsc_describe_operation_full on the best match from either search — it returns "
+    "If you don't know the operation name, call rsc_search_schema — it searches operations, "
+    "fields, and types in one shot and returns the best candidate operations. "
+    "Call rsc_describe_operation_full on the best match — it returns "
     "the full argument signature and all input/enum types in one shot. "
     "Do not guess field names or attempt rsc_execute_operation without first verifying "
     "the query shape — guessing generates 400 errors and unnecessary API noise. "
@@ -611,65 +611,72 @@ def _load_workflows() -> None:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def rsc_search_operations(search: str, operation_type: str = "all") -> list[dict]:
-    """Search for RSC GraphQL operations by keyword.
+def rsc_search_schema(search: str, operation_type: str = "all") -> dict:
+    """Search the full RSC GraphQL schema to find relevant operations.
+
+    Searches operation names/descriptions, field semantics, and type-level
+    vocabulary in one call and returns the best candidate operations ranked
+    by relevance. Use this whenever you need to find an operation and don't
+    already know its name.
+
+    The search runs three complementary indexes:
+    - Operation index: matches operation names and descriptions directly
+    - Field index: finds concepts buried in nested type fields (e.g.
+      "who is logged in" → Group.activeUsers → operations returning Group)
+    - Type index: matches domain concepts to operations via aggregate type
+      vocabulary (e.g. "cluster storage runway" → Cluster type → listing ops)
+
+    Results are deduplicated and merged; the same operation may be surfaced
+    by multiple indexes and will appear once with the highest score.
 
     Args:
-        search: Case-insensitive substring to match against operation names
-                and descriptions.
-        operation_type: Filter to "query", "mutation", or "all" (default).
+        search: Natural-language query or keywords describing what you want.
+            Must be non-empty. Use descriptive terms, not operation names.
+        operation_type: Filter results to "query", "mutation", or "all"
+            (default). Use "query" for read-only intent, "mutation" for
+            write intent.
 
     Returns:
-        List of matching operations with name, type, description, return_type.
+        Dict with:
+          - operations: list of dicts with name, type, description,
+            return_type, score, source (ops/fields/types)
+          - search: the search string used
     """
     if not search or not search.strip():
         raise ValueError("search must not be empty — provide a meaningful query term")
-    return search_operations(search, operation_type)
 
+    seen: dict[str, dict] = {}
 
-@mcp.tool()
-def rsc_search_fields(search: str, limit: int = 10) -> list[dict]:
-    """Search the GraphQL schema for FIELDS (not operations) matching the query.
+    # 1. Operation-level search
+    for r in search_operations(search, operation_type):
+        name = r["name"]
+        if name not in seen or r["score"] > seen[name]["score"]:
+            seen[name] = {**r, "source": "ops"}
 
-    Use when the semantic you are looking for likely lives on a field nested
-    inside a return type rather than on an operation name or description.
-    rsc_search_operations finds entry points (directly callable); this tool
-    finds concepts buried in the type graph that still need to be traced back
-    to an operation. Common cases where field search wins:
+    # 2. Field-level search — resolve field → type → operations
+    for fr in search_fields(search, limit=10):
+        type_name = fr.get("type", "")
+        if not type_name:
+            continue
+        for candidate in [type_name, type_name + "Connection", type_name + "Summary"]:
+            for op in search_operations(candidate, operation_type):
+                name = op["name"]
+                if op["score"] > 0 and (name not in seen or op["score"] > seen[name]["score"]):
+                    seen[name] = {**op, "source": "fields"}
 
-      - "logged in" -> Group.activeUsers (the canonical "who's logged in" answer
-        — a field nested inside the Group type, invisible to operation search)
-      - "cluster needs upgrade" -> Cluster.cdmUpgradeInfo (the right field for
-        upgrade reasoning, on a Cluster returned by clusterConnection)
-      - "sensitive data exposed" -> DataGovViolationDetails.violatedSensitiveHits
-      - "churn" or "ingest rate" -> fields on Snappable not surfaced by operation search
+    # 3. Type-level search (available when rsc-client >= types-bm25 version)
+    if _SEARCH_TYPES_AVAILABLE:
+        for tr in _search_types(search):
+            for op_name in tr.get("ops", []):
+                ops = search_operations(op_name, operation_type)
+                if ops:
+                    op = ops[0]
+                    name = op["name"]
+                    if name not in seen or op["score"] > seen[name]["score"]:
+                        seen[name] = {**op, "source": "types"}
 
-    Once you have a relevant (type, field) hit, find an operation whose return
-    type chain contains that type — use rsc_search_operations or
-    rsc_list_types_matching to follow the trail.
-
-    DO NOT use this tool if you already know the type name — call
-    rsc_describe_type instead. This tool is for semantic discovery when you
-    don't know where in the schema a concept lives.
-
-    The search argument MUST be a meaningful natural-language phrase or
-    keywords describing the concept you are looking for (e.g. "churn daily
-    change rate backup", "sensitive data hits policy object"). An empty or
-    blank search is not allowed and will raise an error.
-
-    Args:
-        search: Natural-language keywords describing the concept to find.
-            Must be non-empty. Use descriptive terms, not type/field names
-            you already know.
-        limit: Maximum number of results (default 10).
-
-    Returns:
-        List of dicts with: type (owning type name), field (field name),
-        description (field description, may be empty), score (BM25 relevance).
-    """
-    if not search or not search.strip():
-        raise ValueError("search must not be empty — provide a meaningful query term")
-    return search_fields(search, limit=limit)
+    results = sorted(seen.values(), key=lambda x: x["score"], reverse=True)[:10]
+    return {"operations": results, "search": search}
 
 
 @mcp.tool()
@@ -780,18 +787,6 @@ def rsc_describe_operation_full(name: str, operation_type: str, depth: int = 2) 
     return op
 
 
-@mcp.tool()
-def rsc_list_types_matching(search: str) -> list[str]:
-    """Filter RSC GraphQL type names by substring.
-
-    Args:
-        search: Case-insensitive substring to match against type names.
-
-    Returns:
-        List of matching type names.
-    """
-    search_lower = search.lower()
-    return [t for t in list_types() if search_lower in t.lower()]
 
 
 # ---------------------------------------------------------------------------
@@ -1554,6 +1549,169 @@ def rsc_get_events(
     return _paginated_result(conn, nodes, "events")
 
 
+_CLUSTER_FIELDS = (
+    "id name status version type productType lastConnectionTime estimatedRunway isHealthy "
+    "clusterNodeConnection { count } "
+    "metric { totalCapacity usedCapacity availableCapacity }"
+)
+_CLUSTER_QUERY = (
+    "query GetClusters($filter: ClusterFilterInput, $after: String) { "
+    "allClusterConnection(filter: $filter, after: $after) { "
+    f"count nodes {{ {_CLUSTER_FIELDS} }} pageInfo {{ hasNextPage endCursor }} }} }}"
+)
+
+
+@mcp.tool()
+def rsc_get_clusters(
+    name_contains: str | None = None,
+    status: str | None = None,
+    cluster_type: str | None = None,
+    limit: int = 20,
+) -> dict:
+    """List Rubrik CDM clusters registered in RSC. Use for any question about cluster
+    inventory, connection status (connected/disconnected/degraded), CDM version, storage
+    capacity, runway, sync health, node health, or hardware warnings.
+    Filters: name, connection status, cluster type.
+
+    Each result includes:
+      - Identity: id, name, version, type, productType
+      - Status: status (Connected/Disconnected/Initializing), isHealthy
+      - Capacity: metric.totalCapacity, usedCapacity, availableCapacity (bytes)
+      - Runway: estimatedRunway (days before storage is full)
+      - Nodes: clusterNodeConnection.count (number of nodes in the cluster)
+      - Timing: lastConnectionTime
+
+    Args:
+        name_contains: Filter by cluster name. Passed to the server-side name filter.
+        status: Connection status filter. One of: Connected, Disconnected, Initializing.
+        cluster_type: Cluster type filter. One of: Cloud, ExoCompute, OnPrem, Polaris,
+            Robo, Unknown.
+        limit: Maximum number of clusters to return. Default 20, max 100.
+
+    Returns:
+        A dict with:
+          - count: true total matching the filter (the connection's `count`).
+          - returned: how many clusters are in this response.
+          - truncated: True when returned < count (more exist than were returned).
+          - clusters: list of cluster records.
+    """
+    if limit < 0:
+        raise ValueError("limit must be a non-negative integer")
+    limit = min(limit, 100)
+
+    filter_input: dict[str, Any] = {}
+    if name_contains:
+        filter_input["name"] = [name_contains]
+    if status:
+        filter_input["connectionState"] = [status]
+    if cluster_type:
+        filter_input["type"] = [cluster_type]
+
+    client = _mcp_rsc_client()
+    variables: dict[str, Any] = {"filter": filter_input or None}
+    raw = client.execute(
+        _CLUSTER_QUERY,
+        variables=variables,
+        max_records=limit,
+    )
+    conn = _data_or_raise(raw, "allClusterConnection")
+    nodes = conn.get("nodes", [])
+    nodes = nodes[:limit]
+    return _paginated_result(conn, nodes, "clusters")
+
+
+_SLA_FIELDS = (
+    "id name "
+    "... on GlobalSlaReply { "
+    "description protectedObjectCount isRetentionLockedSla retentionLockMode "
+    "baseFrequency { duration unit } "
+    "archivalSpecs { threshold thresholdUnit storageSetting { id name targetType } } "
+    "replicationSpecsV2 { cluster { id name } } "
+    "objectTypes "
+    "}"
+)
+_SLA_QUERY = (
+    "query GetSlaDomains($filter: [GlobalSlaFilterInput!], $after: String) { "
+    "slaDomains(filter: $filter, after: $after, "
+    "shouldShowProtectedObjectCount: true) { "
+    f"count nodes {{ {_SLA_FIELDS} }} pageInfo {{ hasNextPage endCursor }} }} }}"
+)
+
+
+@mcp.tool()
+def rsc_get_sla_domains(
+    name_contains: str | None = None,
+    object_type: str | None = None,
+    cluster_id: str | None = None,
+    is_retention_locked: bool | None = None,
+    limit: int = 50,
+) -> dict:
+    """List SLA Domains (protection policies) configured in RSC. Use for any question
+    about protection policies — filter by name, protected workload type (including
+    Kubernetes), cluster, or retention lock status. Also use for: counting SLA policies,
+    finding which SLAs protect a specific workload type, identifying retention-locked SLAs,
+    or finding SLAs with specific replication or archival configurations.
+
+    Each result includes:
+      - Identity: id, name, description
+      - Object types: objectTypes (SlaObjectType enum values for workloads this SLA covers)
+      - Coverage: protectedObjectCount (number of workloads under this SLA)
+      - Retention lock: isRetentionLockedSla, retentionLockMode
+      - Base frequency: baseFrequency.duration + unit (primary backup schedule)
+      - Archival: archivalSpecs (target name, type, and frequency threshold)
+      - Replication: replicationSpecsV2 (destination cluster IDs and names)
+
+    Args:
+        name_contains: Filter by SLA name (server-side name filter).
+        object_type: Filter by protected workload type. Must be a SlaObjectType enum
+            value, e.g. "VSPHERE_OBJECT_TYPE", "K8S_OBJECT_TYPE",
+            "AWS_EC2_EBS_OBJECT_TYPE", "NUTANIX_OBJECT_TYPE".
+        cluster_id: Filter by cluster UUID — returns SLAs associated with that cluster.
+        is_retention_locked: When True, return only retention-locked SLAs. When False,
+            return only non-retention-locked SLAs. Omit to return all. Applied
+            client-side after fetching; `count` reflects the server-side total before
+            this filter.
+        limit: Maximum number of SLA domains to return. Default 50, max 200.
+
+    Returns:
+        A dict with:
+          - count: true total matching the server-side filter (before is_retention_locked).
+          - returned: how many SLA domains are in this response.
+          - truncated: True when returned < count.
+          - sla_domains: list of SLA domain records.
+    """
+    if limit < 0:
+        raise ValueError("limit must be a non-negative integer")
+    limit = min(limit, 200)
+
+    filter_list: list[dict] = []
+    if name_contains:
+        filter_list.append({"field": "NAME", "text": name_contains})
+    if object_type:
+        filter_list.append({"field": "OBJECT_TYPE", "objectTypeList": [object_type]})
+    if cluster_id:
+        filter_list.append({"field": "CLUSTER_UUID", "textList": [cluster_id]})
+
+    client = _mcp_rsc_client()
+    variables: dict[str, Any] = {"filter": filter_list or None}
+    # When filtering by retention lock, paginate fully before filtering — the schema
+    # has no server-side equivalent, so capping first would hide matching records
+    # beyond the first page.
+    raw = client.execute(
+        _SLA_QUERY,
+        variables=variables,
+        max_records=None if is_retention_locked is not None else limit,
+    )
+    conn = _data_or_raise(raw, "slaDomains")
+    nodes = conn.get("nodes", [])
+
+    if is_retention_locked is not None:
+        nodes = [n for n in nodes if bool(n.get("isRetentionLockedSla")) == is_retention_locked]
+
+    nodes = nodes[:limit]
+    return _paginated_result(conn, nodes, "sla_domains")
+
+
 @mcp.tool(description=f"""Poll an RSC job until it completes and return the final status.
 
 Handles all job types automatically based on objectType — no polling
@@ -1683,6 +1841,8 @@ _TOOL_REGISTRY.update({
     "rsc_execute_operation":       rsc_execute_operation,
     "rsc_get_workloads":           rsc_get_workloads,
     "rsc_get_events":              rsc_get_events,
+    "rsc_get_clusters":            rsc_get_clusters,
+    "rsc_get_sla_domains":         rsc_get_sla_domains,
     "rsc_wait_for_job":            rsc_wait_for_job,
 })
 
