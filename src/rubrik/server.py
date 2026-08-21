@@ -20,27 +20,27 @@ Execution (requires RSC credentials via env vars or ~/.rsc/config.json):
   - execute_operation     — run a raw GraphQL query (mutations are not supported; Claude will
                             generate a Python code sample for any mutation request)
 
-User workflows (seeded to the workflows/ dir under the MCP config dir — ~/.rubrik by
-default, or $RUBRIK_MCP_CONFIG_DIR — on first run, user-editable):
-  - rsc_snapshot_and_wait   — take an on-demand snapshot and poll until it completes (cloud-native)
-  - rsc_protection_gaps     — out-of-compliance workloads + recent failures in one call
-  - rsc_find_and_snapshot   — find a workload by name, snapshot it, and wait for completion
+User workflows (loaded from ~/.rubrik/workflows/ or $RUBRIK_MCP_CONFIG_DIR/workflows/):
   - rsc_save_workflow       — save a new workflow from conversation context
   - rsc_list_workflows      — list all workflows in the user dir
   - rsc_delete_workflow     — remove a workflow
 """
 
+import functools
 import json
+import logging
 import os
 import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from logging.handlers import RotatingFileHandler
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 from rsc import (
     RSCClient,
     describe_operation,
@@ -57,6 +57,58 @@ except ImportError:
     _SEARCH_TYPES_AVAILABLE = False
 
 from rubrik import policy
+
+# ---------------------------------------------------------------------------
+# Audit logging
+# ---------------------------------------------------------------------------
+
+def _setup_audit_logger() -> logging.Logger:
+    """Create the rubrik.mcp.audit logger writing JSON lines to ~/.rubrik/mcp-audit.log."""
+    log_dir = Path.home() / ".rubrik"
+    log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    log_path = log_dir / "mcp-audit.log"
+
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=3,
+        encoding="utf-8",
+    )
+    # Emit the raw message only — JSON is formatted inside audit_tool itself.
+    handler.setFormatter(logging.Formatter("%(message)s"))
+
+    logger = logging.getLogger("rubrik.mcp.audit")
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    logger.propagate = False
+    return logger
+
+
+audit_logger = _setup_audit_logger()
+logger = logging.getLogger(__name__)
+
+
+def audit_tool(func):
+    """Decorator that records per-invocation timing and status to the audit log."""
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        start = time.monotonic()
+        status = "ok"
+        try:
+            return await func(*args, **kwargs)
+        except Exception:
+            status = "error"
+            raise
+        finally:
+            duration_ms = round((time.monotonic() - start) * 1000)
+            audit_logger.info(json.dumps({
+                "ts": datetime.utcnow().isoformat() + "Z",
+                "tool": func.__name__,
+                "status": status,
+                "duration_ms": duration_ms,
+            }))
+    return wrapper
+
 
 # Loaded gating policy. Set in main() via policy.load(); until then, gating
 # calls lazily fall back to secure defaults (no file access) so the tools remain
@@ -194,148 +246,6 @@ def _root_query_fields(operation: str) -> list[str]:
                 fields.append(tok)
     return fields
 
-# Starter workflow specs seeded to the workflows dir on first run (only if file absent).
-# Users can freely edit, delete, or override these files.
-_STARTER_WORKFLOWS: list[dict] = [
-    {
-        "schema_version": 1,
-        "version": 2,
-        "name": "rsc_snapshot_and_wait",
-        "description": (
-            "Take an on-demand snapshot for a cloud-native workload and poll until it completes.\n\n"
-            "Pass args: {\"workload_id\": \"<fid>\", \"object_type\": \"<type>\"}\n\n"
-            "Use rsc_get_workloads to find a workload's fid and objectType. Supported cloud-native "
-            "types: AzureNativeVm, AwsNativeEc2Instance, GcpNativeGCEInstance, AwsNativeRdsInstance, "
-            "and others. For CDM workloads (VmwareVirtualMachine, NutanixVirtualMachine, etc.) "
-            "use rsc_find_and_snapshot or call rsc_take_on_demand_snapshot and rsc_wait_for_job "
-            "directly — rsc_take_on_demand_snapshot returns cluster_id in its response for CDM types."
-        ),
-        "steps": [
-            {
-                "id": "snapshot",
-                "mcp": "rubrik",
-                "tool": "rsc_take_on_demand_snapshot",
-                "args": {
-                    "workload_id": "${_args.workload_id}",
-                    "object_type": "${_args.object_type}",
-                },
-            },
-            {
-                "id": "wait",
-                "mcp": "rubrik",
-                "tool": "rsc_wait_for_job",
-                "args": {
-                    "job_id": "${snapshot.taskchainUuids.0.taskchainUuid}",
-                    "object_type": "${_args.object_type}",
-                },
-            },
-        ],
-    },
-    {
-        "schema_version": 1,
-        "version": 2,
-        "name": "rsc_protection_gaps",
-        "description": (
-            "Get a combined view of out-of-compliance workloads and recent backup failures.\n\n"
-            "Returns two result sets: 'workloads' (out-of-compliance in the last 24 hours, "
-            "sorted by missed snapshots) and 'failures' (backup failures in the last 24 hours). "
-            "Use together to identify workloads that are both non-compliant and actively failing.\n\n"
-            "Pass args: {\"last_hours\": 48} to widen the failures window (only the failures "
-            "step is affected; the workloads step is fixed at LAST_24_HOURS). "
-            "Pass {\"object_type\": \"<type>\"} to scope the failures step to a specific "
-            "workload type. The workloads step always returns all workload types."
-        ),
-        "steps": [
-            {
-                "id": "workloads",
-                "mcp": "rubrik",
-                "tool": "rsc_get_workloads",
-                "args": {
-                    "compliance_status": "OUT_OF_COMPLIANCE",
-                    "sla_time_range": "LAST_24_HOURS",
-                    "sort_by": "MissedSnapshots",
-                    "sort_order": "DESC",
-                },
-            },
-            {
-                "id": "failures",
-                "mcp": "rubrik",
-                "tool": "rsc_get_events",
-                "args": {
-                    "last_hours": "${_args.last_hours}",
-                    "object_type": "${_args.object_type}",
-                    "status": "FAILURE",
-                    "activity_type": "BACKUP",
-                },
-            },
-        ],
-    },
-    {
-        "schema_version": 1,
-        "version": 2,
-        "name": "rsc_find_and_snapshot",
-        "description": (
-            "Find a cloud-native workload by name, take an on-demand snapshot, and wait for it to complete.\n\n"
-            "Pass args: {\"search_term\": \"<name>\"} to find the workload. Takes the first matching result.\n\n"
-            "Note: This workflow targets cloud-native workloads (AzureNativeVm, AwsNativeEc2Instance, etc.). "
-            "For CDM workloads, use rsc_take_on_demand_snapshot and rsc_wait_for_job directly."
-        ),
-        "steps": [
-            {
-                "id": "find",
-                "mcp": "rubrik",
-                "tool": "rsc_get_workloads",
-                "args": {
-                    "search_term": "${_args.search_term}",
-                },
-            },
-            {
-                "id": "snapshot",
-                "mcp": "rubrik",
-                "tool": "rsc_take_on_demand_snapshot",
-                "args": {
-                    "workload_id": "${find.0.fid}",
-                    "object_type": "${find.0.objectType}",
-                },
-            },
-            {
-                "id": "wait",
-                "mcp": "rubrik",
-                "tool": "rsc_wait_for_job",
-                "args": {
-                    "job_id": "${snapshot.taskchainUuids.0.taskchainUuid}",
-                    "object_type": "${find.0.objectType}",
-                },
-            },
-        ],
-    },
-    {
-        "schema_version": 1,
-        "version": 1,
-        "name": "rsc_get_active_sessions",
-        "description": (
-            "List users currently logged in to Rubrik Security Cloud. Returns active sessions "
-            "per user group via the Group.activeUsers field — the canonical answer to "
-            "\"who's logged in\" that operation-level schema search misses because the relevant "
-            "semantics live on a nested field, not on the operation itself.\n\n"
-            "Distinct from userAuditConnection (login *events* including service accounts) and "
-            "usersInCurrentAndDescendantOrganization (account roster sorted by lastLogin).\n\n"
-            "Returns groups with their currently-active users (username, email, lastLogin). "
-            "Groups with no active users come back with activeUsers: []. A user can appear in "
-            "multiple groups — dedupe by email when presenting if needed."
-        ),
-        "steps": [
-            {
-                "id": "sessions",
-                "mcp": "rubrik",
-                "tool": "rsc_execute_operation",
-                "args": {
-                    "operation": "query { groupsInCurrentAndDescendantOrganization { count nodes { groupName domainName activeUsers { username email lastLogin } } } }",
-                },
-            },
-        ],
-    },
-]
 
 # Registry of built-in RSC tool functions, populated after all @mcp.tool() definitions.
 # Used by _execute_workflow to dispatch RSC steps server-side by name.
@@ -556,7 +466,45 @@ def _register_workflow(spec: dict) -> None:
         return _execute_workflow(spec, args)
     _tool.__name__ = spec["name"]
     _tool.__doc__ = spec["description"]
-    mcp.tool()(_tool)
+    # Apply annotations when the spec carries an explicit read_only flag; otherwise
+    # leave annotations unset so the SDK default applies (conservative for unknown
+    # user-saved workflows that may invoke write tools).
+    audited = audit_tool(_tool)
+    if "read_only" in spec:
+        read_only: bool = bool(spec["read_only"])
+        tool_annotations = ToolAnnotations(
+            readOnlyHint=read_only,
+            destructiveHint=False,  # workflow steps are additive; destructive is not applicable
+        )
+        mcp.tool(annotations=tool_annotations)(audited)
+    else:
+        mcp.tool()(audited)
+
+
+_WORKFLOW_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,63}$")
+
+
+def _validate_workflow_name(name: str, source: str) -> bool:
+    if not _WORKFLOW_NAME_RE.match(name):
+        logger.warning("Skipping workflow %s: name %r is not a valid identifier", source, name)
+        return False
+    return True
+
+
+def _validate_workflow_description(desc: str, source: str) -> bool:
+    """Validate a workflow description before tool registration.
+
+    Returns True if the description is safe to use, False if it should be
+    rejected. Logs a warning naming the workflow file and the reason when
+    validation fails.
+    """
+    if len(desc) > 500:
+        logger.warning("Skipping workflow %s: description exceeds 500 characters", source)
+        return False
+    if any(ord(c) < 32 and c not in (" ", "\t", "\n") for c in desc):
+        logger.warning("Skipping workflow %s: description contains invalid characters", source)
+        return False
+    return True
 
 
 def _load_workflows() -> None:
@@ -569,30 +517,6 @@ def _load_workflows() -> None:
     wf_dir = _workflows_dir()
     wf_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
 
-    for spec in _STARTER_WORKFLOWS:
-        path = wf_dir / f"{spec['name']}.json"
-        bundled_version = spec.get("version", 1)
-        if not path.exists():
-            path.write_text(json.dumps(spec, indent=2))
-            path.chmod(0o600)
-            continue
-        try:
-            on_disk = json.loads(path.read_text())
-        except Exception:
-            continue
-        on_disk_version = on_disk.get("version", 1)
-        if on_disk_version < bundled_version:
-            backup = path.with_suffix(f".json.bak-v{on_disk_version}")
-            path.rename(backup)
-            path.write_text(json.dumps(spec, indent=2))
-            path.chmod(0o600)
-            print(
-                f"[rubrik] updated starter workflow {spec['name']} "
-                f"from v{on_disk_version} to v{bundled_version} "
-                f"(previous version backed up to {backup.name})",
-                file=sys.stderr,
-            )
-
     for path in sorted(wf_dir.glob("*.json")):
         try:
             spec = json.loads(path.read_text())
@@ -600,6 +524,10 @@ def _load_workflows() -> None:
             if not required.issubset(spec):
                 continue
             if "steps" not in spec and "tool" not in spec:
+                continue
+            if not _validate_workflow_name(spec.get("name", ""), path.name):
+                continue
+            if not _validate_workflow_description(spec.get("description", ""), path.name):
                 continue
             _register_workflow(spec)
         except Exception as exc:
@@ -610,7 +538,8 @@ def _load_workflows() -> None:
 # Discovery tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_search_schema(search: str, operation_type: str = "all") -> dict:
     """Search the full RSC GraphQL schema to find relevant operations.
 
@@ -679,7 +608,8 @@ def rsc_search_schema(search: str, operation_type: str = "all") -> dict:
     return {"operations": results, "search": search}
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_describe_type(name: str) -> dict:
     """Get the definition of a GraphQL type used in RSC operations.
 
@@ -695,7 +625,8 @@ def rsc_describe_type(name: str) -> dict:
     return describe_type(name)
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_describe_operation_full(name: str, operation_type: str, depth: int = 2) -> dict:
     """Get an operation's signature with all input types expanded inline.
 
@@ -971,7 +902,8 @@ def _wait_for_job_impl(
         time.sleep(min(poll_interval, remaining))
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_get_workloads(
     object_type: str | None = None,
     protection_status: str | None = None,
@@ -1423,7 +1355,8 @@ _HELP_QUERY = (
 )
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_search_help(
     query: str,
     source: str | None = None,
@@ -1470,7 +1403,8 @@ def rsc_search_help(
     return _paginated_result(snippets, nodes, "results")
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_get_events(
     last_hours: float = 24,
     workload_id: str | None = None,
@@ -1561,7 +1495,8 @@ _CLUSTER_QUERY = (
 )
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_get_clusters(
     name_contains: str | None = None,
     status: str | None = None,
@@ -1638,7 +1573,8 @@ _SLA_QUERY = (
 )
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_get_sla_domains(
     name_contains: str | None = None,
     object_type: str | None = None,
@@ -1712,7 +1648,8 @@ def rsc_get_sla_domains(
     return _paginated_result(conn, nodes, "sla_domains")
 
 
-@mcp.tool(description=f"""Poll an RSC job until it completes and return the final status.
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False), description=f"""Poll an RSC job until it completes and return the final status.
 
 Handles all job types automatically based on objectType — no polling
 code needed from the caller.
@@ -1782,11 +1719,13 @@ _EXECUTE_OPERATION_DESCRIPTION = (
     "Returns:\n"
     "    The raw JSON response from the RSC GraphQL API (data + errors if any).\n"
     "    Returns {\"error\": \"mutation_blocked\", \"blocked_operation\": \"...\", \"message\": \"...\"}\n"
-    "    if a mutation is submitted — Claude will use this to generate a Python code sample."
+    "    if a mutation is submitted — Claude will use this to generate a Python code sample.\n\n"
+    "Note: returns the raw GraphQL response with no field filtering or redaction — do not use in contexts where data minimization of personal-data-bearing fields is required."
 )
 
 
-@mcp.tool(description=_EXECUTE_OPERATION_DESCRIPTION)
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False), description=_EXECUTE_OPERATION_DESCRIPTION)
 def rsc_execute_operation(
     operation: str,
     variables: dict[str, Any] | None = None,
@@ -1870,7 +1809,8 @@ def _register_write_tools() -> None:
     disabled: list[str] = []
     for name, fn in _WRITE_TOOLS.items():
         if pol.write_tool_enabled(name):
-            mcp.tool()(fn)
+            audited = audit_tool(fn)
+            mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))(audited)
             _TOOL_REGISTRY[name] = fn
         else:
             disabled.append(name)
@@ -1882,7 +1822,8 @@ def _register_write_tools() -> None:
 # Workflow management tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
 def rsc_save_workflow(
     name: str,
     description: str,
@@ -1987,7 +1928,8 @@ def rsc_save_workflow(
     }
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
 def rsc_list_workflows() -> list[dict]:
     """List all user-defined workflows in the MCP config dir's workflows/ folder.
 
@@ -2014,7 +1956,8 @@ def rsc_list_workflows() -> list[dict]:
     return results
 
 
-@mcp.tool()
+@audit_tool
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True))
 def rsc_delete_workflow(name: str) -> dict:
     """Delete a user-defined workflow from the MCP config dir's workflows/ folder.
 

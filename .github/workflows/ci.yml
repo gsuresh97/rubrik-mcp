@@ -53,7 +53,7 @@ jobs:
         # is unused by this stdio-only server, so the vulnerable code paths are
         # not reachable. Remediation (dep overrides / mcp SDK bump) tracked
         # separately; flip this to a hard gate once the HTTP-stack deps are bumped.
-        continue-on-error: true
+        continue-on-error: false
         run: uv run --with pip-audit pip-audit
       - name: Generate CycloneDX SBOM
         run: uv run --with cyclonedx-bom cyclonedx-py environment -o sbom.cdx.json
