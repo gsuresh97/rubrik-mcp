@@ -27,6 +27,7 @@ User workflows (loaded from ~/.rubrik/workflows/ or $RUBRIK_MCP_CONFIG_DIR/workf
 """
 
 import functools
+import inspect
 import json
 import logging
 import os
@@ -90,24 +91,41 @@ logger = logging.getLogger(__name__)
 
 def audit_tool(func):
     """Decorator that records per-invocation timing and status to the audit log."""
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        start = time.monotonic()
-        status = "ok"
-        try:
-            return await func(*args, **kwargs)
-        except Exception:
-            status = "error"
-            raise
-        finally:
-            duration_ms = round((time.monotonic() - start) * 1000)
-            audit_logger.info(json.dumps({
-                "ts": datetime.utcnow().isoformat() + "Z",
-                "tool": func.__name__,
-                "status": status,
-                "duration_ms": duration_ms,
-            }))
-    return wrapper
+    def _emit(name: str, status: str, start: float) -> None:
+        duration_ms = round((time.monotonic() - start) * 1000)
+        audit_logger.info(json.dumps({
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "tool": name,
+            "status": status,
+            "duration_ms": duration_ms,
+        }))
+
+    if inspect.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            start = time.monotonic()
+            status = "ok"
+            try:
+                return await func(*args, **kwargs)
+            except Exception:
+                status = "error"
+                raise
+            finally:
+                _emit(func.__name__, status, start)
+        return async_wrapper
+    else:
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            start = time.monotonic()
+            status = "ok"
+            try:
+                return func(*args, **kwargs)
+            except Exception:
+                status = "error"
+                raise
+            finally:
+                _emit(func.__name__, status, start)
+        return sync_wrapper
 
 
 # Loaded gating policy. Set in main() via policy.load(); until then, gating
