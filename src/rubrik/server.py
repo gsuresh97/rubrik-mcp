@@ -64,29 +64,35 @@ from rubrik import policy
 # ---------------------------------------------------------------------------
 
 def _setup_audit_logger() -> logging.Logger:
-    """Create the rubrik.mcp.audit logger writing JSON lines to ~/.rubrik/mcp-audit.log."""
-    log_dir = Path.home() / ".rubrik"
-    log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    log_path = log_dir / "mcp-audit.log"
+    """Create the rubrik.mcp.audit logger writing JSON lines to <config-dir>/mcp-audit.log.
 
-    handler = RotatingFileHandler(
-        log_path,
-        maxBytes=10 * 1024 * 1024,  # 10 MB
-        backupCount=3,
-        encoding="utf-8",
-    )
-    # Emit the raw message only — JSON is formatted inside audit_tool itself.
-    handler.setFormatter(logging.Formatter("%(message)s"))
+    Resolves the log directory via policy.rubrik_dir() so it honors $RUBRIK_MCP_CONFIG_DIR.
+    Degrades to a NullHandler on any filesystem error so a log setup failure never
+    prevents the server from starting.
+    """
+    audit = logging.getLogger("rubrik.mcp.audit")
+    audit.setLevel(logging.INFO)
+    audit.propagate = False
+    try:
+        log_dir = policy.rubrik_dir()
+        log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            log_dir / "mcp-audit.log",
+            maxBytes=10 * 1024 * 1024,  # 10 MB
+            backupCount=3,
+            encoding="utf-8",
+        )
+        # Emit the raw message only — JSON is formatted inside audit_tool itself.
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        audit.addHandler(handler)
+    except Exception as exc:
+        audit.addHandler(logging.NullHandler())
+        logging.getLogger(__name__).warning("Audit log setup failed, disabling: %s", exc)
+    return audit
 
-    logger = logging.getLogger("rubrik.mcp.audit")
-    logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
-    logger.propagate = False
-    return logger
 
-
-audit_logger = _setup_audit_logger()
 logger = logging.getLogger(__name__)
+audit_logger = _setup_audit_logger()
 
 
 def audit_tool(func):
@@ -556,8 +562,8 @@ def _load_workflows() -> None:
 # Discovery tools
 # ---------------------------------------------------------------------------
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_search_schema(search: str, operation_type: str = "all") -> dict:
     """Search the full RSC GraphQL schema to find relevant operations.
 
@@ -626,8 +632,8 @@ def rsc_search_schema(search: str, operation_type: str = "all") -> dict:
     return {"operations": results, "search": search}
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_describe_type(name: str) -> dict:
     """Get the definition of a GraphQL type used in RSC operations.
 
@@ -643,8 +649,8 @@ def rsc_describe_type(name: str) -> dict:
     return describe_type(name)
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_describe_operation_full(name: str, operation_type: str, depth: int = 2) -> dict:
     """Get an operation's signature with all input types expanded inline.
 
@@ -920,8 +926,8 @@ def _wait_for_job_impl(
         time.sleep(min(poll_interval, remaining))
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_get_workloads(
     object_type: str | None = None,
     protection_status: str | None = None,
@@ -1373,8 +1379,8 @@ _HELP_QUERY = (
 )
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_search_help(
     query: str,
     source: str | None = None,
@@ -1421,8 +1427,8 @@ def rsc_search_help(
     return _paginated_result(snippets, nodes, "results")
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_get_events(
     last_hours: float = 24,
     workload_id: str | None = None,
@@ -1513,8 +1519,8 @@ _CLUSTER_QUERY = (
 )
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_get_clusters(
     name_contains: str | None = None,
     status: str | None = None,
@@ -1591,8 +1597,8 @@ _SLA_QUERY = (
 )
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_get_sla_domains(
     name_contains: str | None = None,
     object_type: str | None = None,
@@ -1666,8 +1672,8 @@ def rsc_get_sla_domains(
     return _paginated_result(conn, nodes, "sla_domains")
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False), description=f"""Poll an RSC job until it completes and return the final status.
+@audit_tool
 
 Handles all job types automatically based on objectType — no polling
 code needed from the caller.
@@ -1742,8 +1748,8 @@ _EXECUTE_OPERATION_DESCRIPTION = (
 )
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False), description=_EXECUTE_OPERATION_DESCRIPTION)
+@audit_tool
 def rsc_execute_operation(
     operation: str,
     variables: dict[str, Any] | None = None,
@@ -1840,8 +1846,8 @@ def _register_write_tools() -> None:
 # Workflow management tools
 # ---------------------------------------------------------------------------
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
+@audit_tool
 def rsc_save_workflow(
     name: str,
     description: str,
@@ -1911,10 +1917,15 @@ def rsc_save_workflow(
             "steps": steps,
         }
 
-    if not name.isidentifier():
+    if not _WORKFLOW_NAME_RE.match(name):
         raise ValueError(
             f"'{name}' is not a valid workflow name. "
-            "Must be a Python identifier (letters, digits, underscores, no spaces)."
+            "Must be a valid identifier (letters, digits, underscores, max 64 chars)."
+        )
+
+    if not _validate_workflow_description(description, name):
+        raise ValueError(
+            "Workflow description is invalid: must be ≤500 characters and contain no control characters."
         )
 
     if name in _BUILTIN_TOOL_NAMES:
@@ -1946,8 +1957,8 @@ def rsc_save_workflow(
     }
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
+@audit_tool
 def rsc_list_workflows() -> list[dict]:
     """List all user-defined workflows in the MCP config dir's workflows/ folder.
 
@@ -1974,8 +1985,8 @@ def rsc_list_workflows() -> list[dict]:
     return results
 
 
-@audit_tool
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True))
+@audit_tool
 def rsc_delete_workflow(name: str) -> dict:
     """Delete a user-defined workflow from the MCP config dir's workflows/ folder.
 
