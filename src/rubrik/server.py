@@ -1672,8 +1672,7 @@ def rsc_get_sla_domains(
     return _paginated_result(conn, nodes, "sla_domains")
 
 
-@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False), description=f"""Poll an RSC job until it completes and return the final status.
-@audit_tool
+_WAIT_FOR_JOB_DESCRIPTION = f"""Poll an RSC job until it completes and return the final status.
 
 Handles all job types automatically based on objectType — no polling
 code needed from the caller.
@@ -1707,7 +1706,12 @@ Returns:
     CDM status values: SUCCEEDED, FAILED, CANCELED, QUEUED, IN_PROGRESS.
     Cloud-native state values: SUCCEEDED, FAILED, CANCELED, RUNNING, READY.
     jobInfo status values: SUCCESS, FAILURE, IN_PROGRESS, UNSPECIFIED.
-""")
+"""
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False),
+          description=_WAIT_FOR_JOB_DESCRIPTION)
+@audit_tool
 def rsc_wait_for_job(
     job_id: str,
     object_type: str,
