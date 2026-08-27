@@ -47,13 +47,11 @@ jobs:
         # uv verifies each package against the per-package hashes in uv.lock;
         # this is the hash-enforced, reproducible install path.
         run: uv sync --locked --all-extras
-      - name: Audit dependencies for known vulnerabilities (report-only)
-        # Report-only for now. Current advisories are all in the mcp SDK's HTTP
-        # transport stack (starlette / uvicorn / python-multipart / pyjwt), which
-        # is unused by this stdio-only server, so the vulnerable code paths are
-        # not reachable. Remediation (dep overrides / mcp SDK bump) tracked
-        # separately; flip this to a hard gate once the HTTP-stack deps are bumped.
-        continue-on-error: true
+      - name: Audit dependencies for known vulnerabilities
+        # Hard gate. mcp bumped to 1.29.0 and rsc-client to 1.7.20260817 cleared
+        # all previously known HTTP-stack CVEs (starlette, pyjwt, python-multipart,
+        # requests). Fail the build on any new advisories.
+        continue-on-error: false
         run: uv run --with pip-audit pip-audit
       - name: Generate CycloneDX SBOM
         run: uv run --with cyclonedx-bom cyclonedx-py environment -o sbom.cdx.json

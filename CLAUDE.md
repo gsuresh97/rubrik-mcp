@@ -62,6 +62,12 @@ To add a built-in tool to `server.py`:
 2. Include a docstring — the MCP client uses it as the tool description
 3. Use `RSCClient` (from `rsc`) for any live API calls; use the index functions (`describe_operation`, `search_operations`, etc.) for offline discovery
 
+## Versioning
+
+rubrik-mcp uses `major.minor.YYYYMMDD` versioning, where `YYYYMMDD` is the schema date of the pinned `rsc-client` release — not the release date of rubrik-mcp itself. Never set the date portion to today just to cut a release; it must match the schema version the package was built against. Bump `major` or `minor` for API/feature changes; update the date only when pinning a new `rsc-client` schema version.
+
+Example: `0.6.20260817` means feature level 0.6, built against the August 17 2026 RSC schema.
+
 ## rsc-client dependency
 
 Discovery tools read from pre-generated JSON indexes that ship with `rsc-client` (`mcp_index.json`, `mcp_types.json`). These are regenerated from the RSC GraphQL SDL in the `rsc-client` CI pipeline whenever the schema updates. No network access is needed for discovery.
