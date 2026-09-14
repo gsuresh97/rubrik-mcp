@@ -312,6 +312,30 @@ def test_disabled_write_tool_not_dispatchable_via_workflow(restore_policy):
 
 
 # --------------------------------------------------------------------------- #
+# server.py startup — writes-disabled message points at the right key
+# --------------------------------------------------------------------------- #
+
+def test_writes_disabled_message_names_the_master_switch():
+    # Master switch off (the shipped default): the fix is writes_enabled.
+    msg = server._writes_disabled_message(policy.Policy(policy.default_data()))
+    assert '"writes_enabled": true' in msg
+    assert "write_tools" not in msg
+
+
+def test_writes_disabled_message_names_the_per_tool_map():
+    # Master switch ON but every tool individually off: writes_enabled is
+    # already true, so pointing at it would send the operator to the wrong key.
+    all_off = {name: False for name in policy.WRITE_TOOL_NAMES}
+    pol = policy.Policy(
+        {**policy.default_data(), "writes_enabled": True, "write_tools": all_off}
+    )
+    assert not pol.any_writes_enabled()  # both states reach the same branch
+    msg = server._writes_disabled_message(pol)
+    assert "write_tools" in msg
+    assert '"writes_enabled": true' not in msg
+
+
+# --------------------------------------------------------------------------- #
 # Parser robustness — real query names + adversarial argument shapes from the
 # bundled rsc-client schema index (offline; no RSC credentials required).
 # --------------------------------------------------------------------------- #
