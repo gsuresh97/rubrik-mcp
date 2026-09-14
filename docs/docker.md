@@ -108,7 +108,8 @@ native install uses), so container and native runs share one config location:
 
 - **Auto-created:** Docker creates the host directory if it doesn't exist — no
   `mkdir` needed. On first run the server seeds a default `mcp-policy.json`
-  (mode `0600`) into it; edit it on the host and restart to change gating.
+  (mode `0600`) into it; edit it on the host and restart to change gating. Write
+  tools are disabled in that default — set `"writes_enabled": true` to expose them.
 - **Persists** across sessions, so `rsc_save_workflow` output and policy edits
   stick. Without any mount, `/config` is an anonymous volume seeded fresh each
   run (edits don't persist).

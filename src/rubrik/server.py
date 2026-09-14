@@ -2072,6 +2072,25 @@ def _check_schema_sync() -> None:
         print(f"[rubrik] schema sync check failed: {exc}", file=sys.stderr, flush=True)
 
 
+def _writes_disabled_message(pol: policy.Policy) -> str:
+    """Explain why no write tool is registered, and what to change to enable one.
+
+    ``any_writes_enabled()`` is false in two distinct states and the remedy
+    differs: the master switch is off, or it is on with every tool individually
+    disabled. Telling an operator to set ``writes_enabled`` when it is already
+    true sends them to the wrong key.
+    """
+    if pol.writes_enabled:
+        return (
+            "[rubrik] write tools are disabled; every write tool is individually turned off "
+            f"in the 'write_tools' map in {policy.policy_path()}."
+        )
+    return (
+        "[rubrik] write tools are disabled; none are registered. To enable them, set "
+        f'"writes_enabled": true in {policy.policy_path()}.'
+    )
+
+
 def main():
     print("[rubrik] starting", file=sys.stderr, flush=True)
     global _POLICY
@@ -2093,6 +2112,8 @@ def main():
             "boundary. See README > Service account role recommendations.",
             file=sys.stderr, flush=True,
         )
+    else:
+        print(_writes_disabled_message(_POLICY), file=sys.stderr, flush=True)
     print(f"[rubrik] gating policy: {_POLICY.summary()}", file=sys.stderr, flush=True)
     _register_write_tools()
     _check_schema_sync()

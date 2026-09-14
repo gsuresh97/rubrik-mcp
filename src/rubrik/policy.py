@@ -11,8 +11,12 @@ Fail-closed by design: a policy file that is present but malformed raises
 permissive default. When no file exists, a secure-default template is seeded on
 first run.
 
+Writes are disabled by default. An operator opts in by setting ``writes_enabled``
+to true in the policy file; until then no write tool is registered.
+
 Gating surfaces:
-  * ``writes_enabled``    — master switch; when false no write tool is registered.
+  * ``writes_enabled``    — master switch, default false; when false no write tool
+                            is registered.
   * ``write_tools``       — sparse per-tool override map; an omitted tool defaults
                             to enabled. Disabled tools are not registered at all.
   * ``queries``           — reads via ``rsc_execute_operation``; allow-by-default
@@ -64,14 +68,19 @@ WRITE_TOOL_NAMES = (
 
 _SEED_COMMENT = (
     "Rubrik MCP gating policy. Complements RSC RBAC (bounds what the MCP will do, "
-    "not what the service account can do). Precedence for queries: "
+    "not what the service account can do). Writes are DISABLED by default: set "
+    "'writes_enabled' to true to register write tools, and use 'write_tools' to "
+    "enable them individually. Precedence for queries: "
     "denied > allowed > allow_by_default. cross_mcp_egress is allowlist-only "
     "(a destination resolves only if named in 'allowed'). Delete this file to "
     "regenerate defaults."
 )
 
 _DEFAULT_POLICY: dict[str, Any] = {
-    "writes_enabled": True,
+    # Writes are off unless an operator turns them on. An MCP server is driven by
+    # an LLM that may act on untrusted input, so exposing write tools is an
+    # explicit decision rather than the out-of-the-box state.
+    "writes_enabled": False,
     "write_tools": {name: True for name in WRITE_TOOL_NAMES},
     "queries": {
         "allow_by_default": True,
