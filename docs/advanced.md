@@ -95,11 +95,13 @@ Optional local allow/deny policy that bounds what the MCP will do, independent o
 
 **Relocating the config directory (`RUBRIK_MCP_CONFIG_DIR`).** Both the policy file and the `workflows/` directory live under `~/.rubrik` by default. Set the `RUBRIK_MCP_CONFIG_DIR` environment variable to point them elsewhere — e.g. `RUBRIK_MCP_CONFIG_DIR=/config` makes the server read/seed `/config/mcp-policy.json` and `/config/workflows/`. This is primarily for containers: mount a single volume and set `RUBRIK_MCP_CONFIG_DIR` to it, and the server auto-seeds the policy there on first run regardless of the image's home directory. See [docs/docker.md](docker.md).
 
+**Write tools are disabled by default.** Out of the box `writes_enabled` is `false`, so no write tool is registered and the agent cannot see one. Enabling them is a deliberate step: set `writes_enabled` to `true` and restart the server.
+
 This is the template seeded on first run — every write tool is listed so you can see the full set and toggle each `true`/`false`:
 
 ```json
 {
-  "writes_enabled": true,
+  "writes_enabled": false,
   "write_tools": {
     "rsc_take_on_demand_snapshot": true,
     "rsc_assign_sla": true,
@@ -110,12 +112,14 @@ This is the template seeded on first run — every write tool is listed so you c
 }
 ```
 
-`write_tools` is a **sparse override map**, so you don't *have* to keep every tool listed — any tool you omit stays enabled. For example, `"write_tools": { "rsc_assign_sla": false }` disables only that one and leaves the rest on. The seeded file enumerates all of them purely for discoverability.
+Note that the per-tool entries are `true` while `writes_enabled` is `false`: the master switch wins, so nothing is exposed until you flip it. The per-tool map then decides which of the write tools you get.
+
+`write_tools` is a **sparse override map**, so you don't *have* to keep every tool listed — any tool you omit stays enabled once `writes_enabled` is `true`. For example, `"write_tools": { "rsc_assign_sla": false }` disables only that one and leaves the rest on. The seeded file enumerates all of them purely for discoverability.
 
 | Key | Effect |
 | :-- | :-- |
-| `writes_enabled` | `false` hides all write tools from the agent. |
-| `write_tools.<name>` | Per-tool on/off (omitted = enabled). |
+| `writes_enabled` | Master switch, **default `false`**. While `false`, all write tools are hidden from the agent regardless of `write_tools`. |
+| `write_tools.<name>` | Per-tool on/off, applied only when `writes_enabled` is `true` (omitted = enabled). |
 | `queries.denied` | Read operation names to block, e.g. `"o365Teams"`. |
 | `queries.allow_by_default` / `allowed` | Set `false` + list `allowed` for strict allowlist mode. |
 | `cross_mcp_egress.allowed` | Allowlist of non-Rubrik MCP destinations a workflow may send data to. Empty = none. |

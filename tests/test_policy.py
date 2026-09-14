@@ -78,13 +78,24 @@ def test_absent_file_seeds_secure_default_template(tmp_path):
     # allowlist-only shape: no allow_by_default / denied for cross-MCP egress
     assert seed["cross_mcp_egress"] == {"allowed": []}
     assert "_comment" in seed
-    assert p.writes_enabled and p.query_allowed("anything")
+    # Seeded template must be write-disabled; reads stay allow-by-default.
+    assert seed["writes_enabled"] is False
+    assert not p.writes_enabled and p.query_allowed("anything")
 
 
 def test_absent_file_without_seed_returns_defaults(tmp_path):
     p = policy.load(tmp_path / "nope.json", seed_if_absent=False)
     assert not (tmp_path / "nope.json").exists()
-    assert p.writes_enabled
+    assert not p.writes_enabled
+
+
+def test_shipped_default_disables_every_write_tool():
+    """The out-of-the-box policy must expose no write tool."""
+    p = policy.Policy(policy.default_data())
+    assert not p.writes_enabled
+    assert not p.any_writes_enabled()
+    for name in policy.WRITE_TOOL_NAMES:
+        assert not p.write_tool_enabled(name)
 
 
 def test_partial_file_merges_onto_defaults(tmp_path):
@@ -151,7 +162,9 @@ def test_write_master_switch_and_sparse_map():
     off = policy.Policy({**policy.default_data(), "writes_enabled": False})
     assert not off.write_tool_enabled("rsc_assign_sla")
 
+    # Master switch must be turned on explicitly — it is off by default.
     p = policy.Policy({**policy.default_data(),
+                       "writes_enabled": True,
                        "write_tools": {"rsc_assign_sla": False}})
     assert not p.write_tool_enabled("rsc_assign_sla")
     assert p.write_tool_enabled("rsc_onboard_host")     # unlisted -> enabled
@@ -159,8 +172,12 @@ def test_write_master_switch_and_sparse_map():
 
 
 def test_any_writes_enabled_drives_startup_warning():
-    # Default: writes on, tools enabled -> warn.
-    assert policy.Policy(policy.default_data()).any_writes_enabled()
+    # Default: writes off -> no warning.
+    assert not policy.Policy(policy.default_data()).any_writes_enabled()
+    # Opted in -> warn.
+    assert policy.Policy(
+        {**policy.default_data(), "writes_enabled": True}
+    ).any_writes_enabled()
     # Master switch off -> no warning.
     assert not policy.Policy(
         {**policy.default_data(), "writes_enabled": False}
@@ -168,7 +185,7 @@ def test_any_writes_enabled_drives_startup_warning():
     # Master on but every curated write tool individually disabled -> no writes exposed.
     all_off = {name: False for name in policy.WRITE_TOOL_NAMES}
     assert not policy.Policy(
-        {**policy.default_data(), "write_tools": all_off}
+        {**policy.default_data(), "writes_enabled": True, "write_tools": all_off}
     ).any_writes_enabled()
 
 

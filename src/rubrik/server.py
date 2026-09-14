@@ -2093,6 +2093,12 @@ def main():
             "boundary. See README > Service account role recommendations.",
             file=sys.stderr, flush=True,
         )
+    else:
+        print(
+            "[rubrik] write tools are disabled; none are registered. To enable them, set "
+            f'"writes_enabled": true in {policy.policy_path()}.',
+            file=sys.stderr, flush=True,
+        )
     print(f"[rubrik] gating policy: {_POLICY.summary()}", file=sys.stderr, flush=True)
     _register_write_tools()
     _check_schema_sync()
