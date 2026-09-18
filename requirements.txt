@@ -8,9 +8,9 @@ annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89
     # via pydantic
-anyio==4.13.0 \
-    --hash=sha256:08b310f9e24a9594186fd75b4f73f4a4152069e3853f1ed8bfbf58369f4ad708 \
-    --hash=sha256:334b70e641fd2221c1505b3890c69882fe4a2df910cba14d97019b90b24439dc
+anyio==4.15.1 \
+    --hash=sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101 \
+    --hash=sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94
     # via
     #   httpx
     #   mcp
@@ -29,6 +29,7 @@ certifi==2026.4.22 \
     #   httpcore
     #   httpx
     #   requests
+    #   rsc-client
 cffi==2.0.0 ; platform_python_implementation != 'PyPy' \
     --hash=sha256:00bdf7acc5f795150faa6957054fbbca2439db2f775ce831222b66f192f03beb \
     --hash=sha256:07b271772c100085dd28b74fa0cd81c8fb1a3ba18b21e03d7c27f3436a10606b \
@@ -739,9 +740,9 @@ rpds-py==0.30.0 \
     # via
     #   jsonschema
     #   referencing
-rsc-client==1.7.20260817 \
-    --hash=sha256:24b561849a536778732f7944368a510c426338c78db5ba1d42c11561435eaa71 \
-    --hash=sha256:7a7a0c0d23dc64716a7c4f5ef27533c9165567de28823e43d9be55ef909dd83c
+rsc-client==1.7.20260914 \
+    --hash=sha256:2cd6e0ecc033192f8e4e8d27112f279e2464ce71f4f944a9a314b516ae084e4a \
+    --hash=sha256:e99f4fe5950021e29ceb69ca8194e861b995c26da2a2dd9d25cd6b30583bf476
     # via rubrik-mcp
 sgqlc==18 \
     --hash=sha256:7af53b5c1aab4602a98a36d6d32bd641e33f602b9b72468885f2505c59c536af \
@@ -769,9 +770,9 @@ typer==0.25.1 \
     --hash=sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89 \
     --hash=sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc
     # via mcp
-typing-extensions==4.15.0 \
-    --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
-    --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
+typing-extensions==4.16.0 \
+    --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
+    --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
     # via
     #   anyio
     #   cryptography
