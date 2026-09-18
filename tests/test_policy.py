@@ -10,6 +10,7 @@ import json
 import random
 
 import pytest
+from graphql import GraphQLSyntaxError
 
 from rubrik import policy
 from rubrik import server
@@ -391,3 +392,92 @@ def test_parser_isolates_root_field_across_50_real_schema_queries():
     assert server._root_query_fields(
         f"query {{ {a}{aa} {{ __typename }} {b}{bb} {{ __typename }} }}"
     ) == [a, b]
+
+
+# --------------------------------------------------------------------------- #
+# Inline/named fragments must not hide fields from the gate
+# --------------------------------------------------------------------------- #
+
+def test_root_fields_resolve_inline_fragment():
+    # An inline fragment on the root type used to shift the field to
+    # brace-depth 2 under the old tokenizer, hiding it entirely.
+    assert server._root_query_fields(
+        "query { ... on Query { usersInCurrentAndDescendantOrganization { nodes { id } } } }"
+    ) == ["usersInCurrentAndDescendantOrganization"]
+
+
+def test_root_fields_resolve_named_fragment_spread():
+    assert server._root_query_fields(
+        "query { ...F } "
+        "fragment F on Query { usersInCurrentAndDescendantOrganization { nodes { id } } }"
+    ) == ["usersInCurrentAndDescendantOrganization"]
+
+
+def test_root_fields_resolve_nested_inline_fragments():
+    assert server._root_query_fields(
+        "query { ... on Query { ... on Query { o365Teams { nodes { id } } } } }"
+    ) == ["o365Teams"]
+
+
+def test_root_fields_fragment_spread_referencing_another_fragment():
+    assert server._root_query_fields(
+        "query { ...Outer } "
+        "fragment Outer on Query { ...Inner } "
+        "fragment Inner on Query { o365Teams { nodes { id } } }"
+    ) == ["o365Teams"]
+
+
+def test_root_fields_cyclic_fragment_does_not_hang():
+    # Defensive: a self-referential fragment must not infinite-loop the walk.
+    # Fragment cycles are a semantic-validation error, not a syntax error, so
+    # this parses fine -- the cycle guard is what has to catch it.
+    assert server._root_query_fields("query { ...A } fragment A on Query { ...A }") == []
+
+
+def test_root_fields_malformed_query_raises():
+    with pytest.raises(GraphQLSyntaxError):
+        server._root_query_fields("query { unterminated ")
+
+
+def test_denied_field_via_inline_fragment_is_blocked(restore_policy):
+    server._POLICY = policy.Policy({
+        **policy.default_data(),
+        "queries": {"allow_by_default": True, "allowed": [],
+                    "denied": ["usersInCurrentAndDescendantOrganization"]},
+    })
+    out = server.rsc_execute_operation(
+        "query { ... on Query { usersInCurrentAndDescendantOrganization { nodes { id } } } }"
+    )
+    assert out["error"] == "query_blocked_by_policy"
+    assert out["blocked_fields"] == ["usersInCurrentAndDescendantOrganization"]
+
+
+def test_denied_field_via_named_fragment_spread_is_blocked(restore_policy):
+    server._POLICY = policy.Policy({
+        **policy.default_data(),
+        "queries": {"allow_by_default": True, "allowed": [], "denied": ["o365Teams"]},
+    })
+    out = server.rsc_execute_operation(
+        "query { ...F } fragment F on Query { o365Teams { nodes { id } } }"
+    )
+    assert out["error"] == "query_blocked_by_policy"
+    assert out["blocked_fields"] == ["o365Teams"]
+
+
+def test_strict_allowlist_field_hidden_via_inline_fragment_is_blocked(restore_policy):
+    # The allowlist-mode half of the bug: a field absent from `allowed` must
+    # still be caught even when wrapped in an inline fragment.
+    server._POLICY = policy.Policy({
+        **policy.default_data(),
+        "queries": {"allow_by_default": False, "allowed": ["slaDomains"], "denied": []},
+    })
+    out = server.rsc_execute_operation("query { ... on Query { o365Teams { nodes { id } } } }")
+    assert out["error"] == "query_blocked_by_policy"
+    assert out["blocked_fields"] == ["o365Teams"]
+
+
+def test_malformed_operation_fails_closed(restore_policy):
+    server._POLICY = policy.Policy(policy.default_data())  # allow-by-default
+    out = server.rsc_execute_operation("query { unterminated ")
+    assert out["error"] == "query_blocked_by_policy"
+    assert "parse error" in out["message"].lower()
