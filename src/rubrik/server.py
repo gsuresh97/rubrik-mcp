@@ -40,6 +40,9 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from pathlib import Path
 from typing import Any
 
+from graphql import parse, GraphQLSyntaxError
+from graphql.language import ast as gql_ast
+
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from rsc import (
@@ -225,49 +228,65 @@ def _is_mutation(operation: str) -> bool:
     return bool(_MUTATION_RE.search(stripped))
 
 
-# Query tokens we care about: names, plus braces / parens / colons. Everything
-# else (numbers, $variables, @directives, commas, whitespace) is dropped.
-_TOKEN_RE = re.compile(r'[A-Za-z_]\w*|[{}():]')
-
-
 def _root_query_fields(operation: str) -> list[str]:
-    """Best-effort extraction of the top-level selection field names in a query.
+    """Extract the top-level (root) selection field names in a query.
 
-    Dependency-free and schema-free: strips string literals/comments, tokenizes
-    into names/braces/parens/colons, then collects names at brace-depth 1 that
-    are not immediately followed by ':' (i.e. real field names, not aliases).
-    Argument contents (inside parens) are ignored. Not a full GraphQL parser —
-    fragment spreads, inline fragments, and directives may contribute spurious
-    names, which is harmless for denylist matching (they won't match real
-    operation names). For example, an inline fragment ``... on SomeType`` at
-    depth 1 captures both ``on`` and ``SomeType`` as field names; these can't
-    collide with denylist entries because GraphQL type names are PascalCase
-    while root query fields (and denylist entries) are camelCase. A real parser
-    (graphql-core, which parses the query string only and needs no schema) is
-    the hardening path if the denylist ever needs to be airtight.
+    Uses graphql-core (already a pinned dependency, via `rsc-client`) to parse
+    the operation and walk its AST, resolving inline fragments
+    (``... on Type { }``) and named fragment spreads (``...FragmentName``) so a
+    field wrapped in either cannot hide from denylist/allowlist enforcement.
+    Aliases resolve to the real field name (``FieldNode.name``, not the alias),
+    matching the previous tokenizer's behavior.
+
+    Raises ``graphql.GraphQLSyntaxError`` if the operation is not valid
+    GraphQL. Callers must treat that as fail-closed (block the operation), not
+    as "no fields to check" — see rsc_execute_operation.
     """
-    s = _GQL_COMMENT_RE.sub("", _GQL_STRING_RE.sub('""', operation))
-    tokens = _TOKEN_RE.findall(s)
+    document = parse(operation, no_location=True)
+
+    fragments = {
+        d.name.value: d
+        for d in document.definitions
+        if isinstance(d, gql_ast.FragmentDefinitionNode)
+    }
+    operations = [
+        d for d in document.definitions
+        if isinstance(d, gql_ast.OperationDefinitionNode)
+    ]
+    if not operations:
+        return []
+
     fields: list[str] = []
-    depth = 0
-    paren = 0
-    for idx, tok in enumerate(tokens):
-        if tok == '(':
-            paren += 1
-        elif tok == ')':
-            paren -= 1
-        elif paren > 0:
-            continue  # ignore everything inside an argument list
-        elif tok == '{':
-            depth += 1
-        elif tok == '}':
-            depth -= 1
-        elif depth == 1 and (tok[0].isalpha() or tok[0] == '_'):
-            # A top-level name is a field unless a ':' follows it (an alias),
-            # in which case the real field name is the next name token.
-            nxt = tokens[idx + 1] if idx + 1 < len(tokens) else None
-            if nxt != ':':
-                fields.append(tok)
+    # Dedupes by fragment name across the whole walk, not per-branch. Safe: a
+    # named fragment has exactly one definition, so re-walking it from a second
+    # spread site can only reproduce field names already captured, never lose
+    # one. Also serves as the cycle guard for self/mutually-referential
+    # fragments (a semantic-validation error, not a syntax error, so parse()
+    # does not itself reject them).
+    seen_fragments: set[str] = set()
+
+    def walk(selection_set: gql_ast.SelectionSetNode) -> None:
+        for selection in selection_set.selections:
+            if isinstance(selection, gql_ast.FieldNode):
+                fields.append(selection.name.value)
+            elif isinstance(selection, gql_ast.InlineFragmentNode):
+                walk(selection.selection_set)
+            elif isinstance(selection, gql_ast.FragmentSpreadNode):
+                name = selection.name.value
+                if name in seen_fragments:
+                    continue
+                seen_fragments.add(name)
+                fragment = fragments.get(name)
+                if fragment is not None:
+                    walk(fragment.selection_set)
+
+    # Only the first operation is walked, matching the prior tokenizer's
+    # single-operation semantics -- not a regression. rsc_execute_operation
+    # has no operationName parameter, so a caller cannot select a specific
+    # operation out of a multi-operation document; RSC's own execution of a
+    # multi-operation document without operationName is undefined/rejected
+    # regardless of what this function returns.
+    walk(operations[0].selection_set)
     return fields
 
 
@@ -1772,7 +1791,20 @@ def rsc_execute_operation(
             ),
         }
 
-    blocked = [f for f in _root_query_fields(operation) if not _get_policy().query_allowed(f)]
+    try:
+        root_fields = _root_query_fields(operation)
+    except GraphQLSyntaxError as exc:
+        return {
+            "error": "query_blocked_by_policy",
+            "blocked_operation": operation,
+            "message": (
+                "This operation could not be parsed as valid GraphQL and was "
+                "blocked by the local MCP gating policy on this machine "
+                f"({policy.policy_path()}). Parse error: {exc}"
+            ),
+        }
+
+    blocked = [f for f in root_fields if not _get_policy().query_allowed(f)]
     if blocked:
         print(f"[rubrik] query blocked by policy: {blocked}", file=sys.stderr, flush=True)
         return {
