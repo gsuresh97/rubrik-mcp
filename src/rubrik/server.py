@@ -280,7 +280,12 @@ def _root_query_fields(operation: str) -> list[str]:
                 if fragment is not None:
                     walk(fragment.selection_set)
 
-    # Root fields from the first operation, matching prior single-operation semantics.
+    # Only the first operation is walked, matching the prior tokenizer's
+    # single-operation semantics -- not a regression. rsc_execute_operation
+    # has no operationName parameter, so a caller cannot select a specific
+    # operation out of a multi-operation document; RSC's own execution of a
+    # multi-operation document without operationName is undefined/rejected
+    # regardless of what this function returns.
     walk(operations[0].selection_set)
     return fields
 
