@@ -53,14 +53,14 @@ per architecture.
 
 The client invokes `docker run` instead of a local binary. The recommended way
 to register it is `claude mcp add`, because your shell expands `$HOME` so the
-config directory defaults to your host `~/.rubrik` (Docker auto-creates it on
+config directory defaults to your host `~/.config/rubrik-mcp` (Docker auto-creates it on
 first run — no `mkdir` needed) and persists across sessions:
 
 ```bash
 claude mcp add rubrik -- docker run -i --rm \
   -e RSC_SERVICE_ACCOUNT_FILE=/creds.json \
   -e RUBRIK_MCP_CONFIG_DIR=/config \
-  -v "$HOME/.rubrik:/config" \
+  -v "$HOME/.config/rubrik-mcp:/config" \
   -v "$HOME/Downloads/service_account.json:/creds.json:ro" \
   rubrik-mcp:0.1.0
 ```
@@ -69,8 +69,8 @@ Discovery-only usage needs no credential — drop the `RSC_SERVICE_ACCOUNT_FILE`
 line and the `/creds.json` mount.
 
 Equivalent raw config (note: an `mcpServers` args array is **not** shell-expanded,
-so use an absolute path — `/Users/you/.rubrik`, or `C:/Users/you/.rubrik` on
-Windows — in place of `$HOME/.rubrik`):
+so use an absolute path — `/Users/you/.config/rubrik-mcp`, or `C:/Users/you/.config/rubrik-mcp` on
+Windows — in place of `$HOME/.config/rubrik-mcp`):
 
 ```json
 {
@@ -81,7 +81,7 @@ Windows — in place of `$HOME/.rubrik`):
         "run", "-i", "--rm",
         "-e", "RSC_SERVICE_ACCOUNT_FILE=/creds.json",
         "-e", "RUBRIK_MCP_CONFIG_DIR=/config",
-        "-v", "/Users/you/.rubrik:/config",
+        "-v", "/Users/you/.config/rubrik-mcp:/config",
         "-v", "/Users/you/Downloads/service_account.json:/creds.json:ro",
         "rubrik-mcp:0.1.0"
       ]
@@ -99,11 +99,11 @@ host directory at `/config` is all that's required. We recommend also passing
 the image default but makes the intent self-documenting and keeps the mount
 working even if the image's default ever changes:
 
-The recommended default is to mount your host `~/.rubrik` (the same directory a
+The recommended default is to mount your host `~/.config/rubrik-mcp` (the same directory a
 native install uses), so container and native runs share one config location:
 
 ```bash
--e RUBRIK_MCP_CONFIG_DIR=/config -v "$HOME/.rubrik:/config"
+-e RUBRIK_MCP_CONFIG_DIR=/config -v "$HOME/.config/rubrik-mcp:/config"
 ```
 
 - **Auto-created:** Docker creates the host directory if it doesn't exist — no
@@ -118,14 +118,14 @@ native install uses), so container and native runs share one config location:
 
 ### Platform notes
 
-- **macOS / Windows (Docker Desktop):** `-v "$HOME/.rubrik:/config"` just works —
+- **macOS / Windows (Docker Desktop):** `-v "$HOME/.config/rubrik-mcp:/config"` just works —
   Docker Desktop remaps ownership so the non-root container can write, and
-  auto-creates `~/.rubrik` if missing. (Windows PowerShell: use
-  `-v "${env:USERPROFILE}\.rubrik:/config"`; note NTFS doesn't enforce the `0600`
+  auto-creates `~/.config/rubrik-mcp` if missing. (Windows PowerShell: use
+  `-v "${env:USERPROFILE}\.config\rubrik-mcp:/config"`; note NTFS doesn't enforce the `0600`
   the server sets — use a named volume `-v rubrik-config:/config` if that matters.)
-- **Native Linux:** when Docker auto-creates `~/.rubrik` it's owned by **root**,
+- **Native Linux:** when Docker auto-creates `~/.config/rubrik-mcp` it's owned by **root**,
   and the container runs as non-root (`mcp`, uid `10001`), so seeding into it
-  fails. Either pre-create it yourself (`mkdir -p ~/.rubrik`, so it's owned by
+  fails. Either pre-create it yourself (`mkdir -p ~/.config/rubrik-mcp`, so it's owned by
   you) or add `--user "$(id -u):$(id -g)"` to the `docker run` args — the latter
   works cleanly because `RUBRIK_MCP_CONFIG_DIR=/config` decouples the config dir from the
   container user's home.

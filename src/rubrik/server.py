@@ -20,7 +20,7 @@ Execution (requires RSC credentials via env vars or ~/.rsc/config.json):
   - execute_operation     — run a raw GraphQL query (mutations are not supported; Claude will
                             generate a Python code sample for any mutation request)
 
-User workflows (loaded from ~/.rubrik/workflows/ or $RUBRIK_MCP_CONFIG_DIR/workflows/):
+User workflows (loaded from ~/.config/rubrik-mcp/workflows/ or $RUBRIK_MCP_CONFIG_DIR/workflows/):
   - rsc_save_workflow       — save a new workflow from conversation context
   - rsc_list_workflows      — list all workflows in the user dir
   - rsc_delete_workflow     — remove a workflow
@@ -1917,7 +1917,7 @@ def rsc_save_workflow(
 
     Call this after completing a workflow in conversation to persist it for
     future use. The workflow is written to the workflows/ dir under the MCP
-    config directory (~/.rubrik/workflows/ by default, or under
+    config directory (~/.config/rubrik-mcp/workflows/ by default, or under
     $RUBRIK_MCP_CONFIG_DIR when set) and registered immediately. It loads
     automatically on next server start. The exact file path is returned in the
     response.
@@ -2021,7 +2021,7 @@ def rsc_save_workflow(
 def rsc_list_workflows() -> list[dict]:
     """List all user-defined workflows in the MCP config dir's workflows/ folder.
 
-    Location is ~/.rubrik/workflows/ by default, or under $RUBRIK_MCP_CONFIG_DIR
+    Location is ~/.config/rubrik-mcp/workflows/ by default, or under $RUBRIK_MCP_CONFIG_DIR
     when set. Returns name, description preview, step count, and the resolved file
     path for each workflow.
     """
@@ -2049,7 +2049,7 @@ def rsc_list_workflows() -> list[dict]:
 def rsc_delete_workflow(name: str) -> dict:
     """Delete a user-defined workflow from the MCP config dir's workflows/ folder.
 
-    Location is ~/.rubrik/workflows/ by default, or under $RUBRIK_MCP_CONFIG_DIR
+    Location is ~/.config/rubrik-mcp/workflows/ by default, or under $RUBRIK_MCP_CONFIG_DIR
     when set. Removes the workflow file from disk. The workflow remains callable
     in the current server session but will not load on next restart.
 
@@ -2146,9 +2146,27 @@ def _writes_disabled_message(pol: policy.Policy) -> str:
     )
 
 
+def _warn_legacy_config() -> None:
+    """Warn on stderr and in the audit log if config is still in the legacy dir.
+
+    Must run before policy.load(), which seeds the new-location policy and would
+    silence the notice.
+    """
+    notice = policy.legacy_config_notice()
+    if notice is None:
+        return
+    print(f"[rubrik] WARNING: {notice}", file=sys.stderr, flush=True)
+    audit_logger.warning(json.dumps({
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "event": "legacy_config_notice",
+        "message": notice,
+    }))
+
+
 def main():
     print("[rubrik] starting", file=sys.stderr, flush=True)
     global _POLICY
+    _warn_legacy_config()
     try:
         _POLICY = policy.load()
     except policy.PolicyError as exc:

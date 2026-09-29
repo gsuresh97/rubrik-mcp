@@ -47,7 +47,7 @@ export RSC_SERVICE_ACCOUNT_FILE=/path/to/service_account.json
 | Execution | Yes | `server.py` — `rsc_execute_operation`, `rsc_get_workloads`, `rsc_get_events`, etc. |
 | Workflows | Yes | `server.py` — `rsc_save_workflow`, `rsc_list_workflows`, `rsc_delete_workflow` |
 
-User-defined workflows are persisted to `~/.rubrik/workflows/` as JSON. On startup, the server loads every JSON file in that directory and registers it as a named MCP tool.
+User-defined workflows are persisted to `~/.config/rubrik-mcp/workflows/` as JSON. On startup, the server loads every JSON file in that directory and registers it as a named MCP tool.
 
 ## Write operations
 
@@ -55,7 +55,7 @@ User-defined workflows are persisted to `~/.rubrik/workflows/` as JSON. On start
 
 ## Adding a tool
 
-When a user asks to "create a tool", **default to a user-level workflow** saved via `rsc_save_workflow` to `~/.rubrik/workflows/`. Do NOT edit `server.py` unless the user explicitly asks for a built-in tool, or the required behavior is impossible in the workflow engine (e.g. looping over a dynamic result set).
+When a user asks to "create a tool", **default to a user-level workflow** saved via `rsc_save_workflow` to `~/.config/rubrik-mcp/workflows/`. Do NOT edit `server.py` unless the user explicitly asks for a built-in tool, or the required behavior is impossible in the workflow engine (e.g. looping over a dynamic result set).
 
 To add a built-in tool to `server.py`:
 1. Add a `@mcp.tool()` decorated function in `server.py`

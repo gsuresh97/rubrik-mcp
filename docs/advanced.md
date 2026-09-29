@@ -33,7 +33,7 @@ These tools work entirely offline using a pre-built index of the RSC schema. No 
 
 ### Community workflow examples
 
-Workflows are plain JSON files installed by dropping them into `~/.rubrik/workflows/` and restarting the MCP client. Examples from the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository include:
+Workflows are plain JSON files installed by dropping them into `~/.config/rubrik-mcp/workflows/` and restarting the MCP client. Examples from the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository include:
 
 | Workflow | Description |
 |----------|-------------|
@@ -45,7 +45,7 @@ Workflows are plain JSON files installed by dropping them into `~/.rubrik/workfl
 | Tool | Description |
 |------|-------------|
 | `rsc_save_workflow` | Save a multi-step workflow as a named, callable MCP tool |
-| `rsc_list_workflows` | List all workflows in `~/.rubrik/workflows/` |
+| `rsc_list_workflows` | List all workflows in `~/.config/rubrik-mcp/workflows/` |
 | `rsc_delete_workflow` | Remove a saved workflow |
 
 ---
@@ -59,7 +59,7 @@ graph TD
     subgraph MCP["Rubrik MCP  (FastMCP server, stdio)"]
         DT["<b>Discovery Tools</b><br/>search · describe · list<br/><i>no credentials needed</i>"]
         ET["<b>Execution Tools</b><br/>workloads · events · snapshots<br/>execute_operation (queries only)<br/><i>credentials required</i>"]
-        WF["<b>Workflows</b><br/>~/.rubrik/workflows/<br/><i>user-editable JSON tools</i>"]
+        WF["<b>Workflows</b><br/>~/.config/rubrik-mcp/workflows/<br/><i>user-editable JSON tools</i>"]
     end
 
     subgraph CLIENT["rsc-client  (Python library, PyPI)"]
@@ -85,15 +85,35 @@ graph TD
 - **Workflows** are JSON specs that chain tool calls; the engine resolves `${step.field}` references between steps
 - **rsc-client** keeps the schema index current — CI regenerates it from the SDL on each Rubrik release
 
-The server entry point is `src/rubrik/server.py`. Workflow files are plain JSON stored in `~/.rubrik/workflows/` and auto-registered as tools on startup.
+The server entry point is `src/rubrik/server.py`. Workflow files are plain JSON stored in `~/.config/rubrik-mcp/workflows/` and auto-registered as tools on startup.
 
 ---
 
 ## Gating policy
 
-Optional local allow/deny policy that bounds what the MCP will do, independent of the service account's RSC permissions (RBAC decides what the account *can* do; this decides what the MCP is *willing* to expose). Read from `~/.rubrik/mcp-policy.json` at startup; a secure-default template is seeded on first run (`0600`). Changes take effect on the next server start.
+Optional local allow/deny policy that bounds what the MCP will do, independent of the service account's RSC permissions (RBAC decides what the account *can* do; this decides what the MCP is *willing* to expose). Read from `~/.config/rubrik-mcp/mcp-policy.json` at startup; a secure-default template is seeded on first run (`0600`). Changes take effect on the next server start.
 
-**Relocating the config directory (`RUBRIK_MCP_CONFIG_DIR`).** Both the policy file and the `workflows/` directory live under `~/.rubrik` by default. Set the `RUBRIK_MCP_CONFIG_DIR` environment variable to point them elsewhere — e.g. `RUBRIK_MCP_CONFIG_DIR=/config` makes the server read/seed `/config/mcp-policy.json` and `/config/workflows/`. This is primarily for containers: mount a single volume and set `RUBRIK_MCP_CONFIG_DIR` to it, and the server auto-seeds the policy there on first run regardless of the image's home directory. See [docs/docker.md](docker.md).
+**Relocating the config directory (`RUBRIK_MCP_CONFIG_DIR`).** Both the policy file and the `workflows/` directory live under `~/.config/rubrik-mcp` by default. Set the `RUBRIK_MCP_CONFIG_DIR` environment variable to point them elsewhere — e.g. `RUBRIK_MCP_CONFIG_DIR=/config` makes the server read/seed `/config/mcp-policy.json` and `/config/workflows/`. This is primarily for containers: mount a single volume and set `RUBRIK_MCP_CONFIG_DIR` to it, and the server auto-seeds the policy there on first run regardless of the image's home directory. See [docs/docker.md](docker.md).
+
+The default location is fixed at `~/.config/rubrik-mcp` on every OS (on Windows, under your user profile); `RUBRIK_MCP_CONFIG_DIR` is the only way to change it. The audit log, `mcp-audit.log` (JSON lines, one per tool call, rotated at 10 MB), is written to the same directory.
+
+**Upgrading from `~/.rubrik`.** Earlier versions kept the policy and workflows in `~/.rubrik`. Nothing is migrated automatically and nothing under `~/.rubrik` is read, changed or deleted. If `~/.rubrik/mcp-policy.json` exists and no policy exists yet at the new location, the server prints a one-time notice to stderr (and records it in the audit log) on startup. By then the server has already created a default policy and an empty `workflows/` directory at the new location, so the commands below overwrite the default policy; they work the same whether run before or after the first start of the new version. Stop the server, then:
+
+```bash
+mkdir -p ~/.config/rubrik-mcp/workflows
+mv ~/.rubrik/mcp-policy.json ~/.config/rubrik-mcp/
+mv ~/.rubrik/workflows/* ~/.config/rubrik-mcp/workflows/
+```
+
+On Windows PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force $HOME\.config\rubrik-mcp\workflows
+Move-Item -Force $HOME\.rubrik\mcp-policy.json $HOME\.config\rubrik-mcp\
+Move-Item -Force $HOME\.rubrik\workflows\* $HOME\.config\rubrik-mcp\workflows\
+```
+
+(Skip the workflow commands if you have no `~/.rubrik/workflows` directory.) If you run the server in a container, update the volume mount to the new path (see [docs/docker.md](docker.md)).
 
 **Write tools are disabled by default.** Out of the box `writes_enabled` is `false`, so no write tool is registered and the agent cannot see one. Enabling them is a deliberate step: set `writes_enabled` to `true` and restart the server.
 
@@ -136,7 +156,7 @@ This is a startup configuration control, not a tamper-proof boundary — for a h
 
 Additional workflows contributed by the community — threat feed management, SLA operations, compliance reporting, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository.
 
-To install a community workflow, copy the JSON file into `~/.rubrik/workflows/` and restart your MCP client.
+To install a community workflow, copy the JSON file into `~/.config/rubrik-mcp/workflows/` and restart your MCP client.
 
 To contribute a workflow you've built, open a pull request in the community repo. Add the JSON file to `workflows/` and update the README table. No code changes required — just the JSON spec.
 
