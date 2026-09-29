@@ -7,6 +7,7 @@ so no credentials are required.
 """
 
 import json
+import logging
 import random
 from pathlib import Path
 
@@ -109,7 +110,22 @@ def test_legacy_notice_does_not_modify_legacy_dir(fake_home):
     assert _snapshot(legacy) == before
 
 
-def test_main_warns_on_stderr_before_seeding(fake_home, monkeypatch, capsys):
+@pytest.fixture
+def audit_log(monkeypatch, tmp_path):
+    # server.audit_logger is bound to the real config dir at import time.
+    path = tmp_path / "mcp-audit.log"
+    handler = logging.FileHandler(path, encoding="utf-8")
+    audit = logging.getLogger("rubrik.mcp.audit.test")
+    audit.setLevel(logging.INFO)
+    audit.propagate = False
+    audit.addHandler(handler)
+    monkeypatch.setattr(server, "audit_logger", audit)
+    yield path
+    audit.removeHandler(handler)
+    handler.close()
+
+
+def test_main_warns_on_stderr_before_seeding(fake_home, audit_log, monkeypatch, capsys):
     legacy = _make_legacy(fake_home)
     before = _snapshot(legacy)
     monkeypatch.setattr(server, "_register_write_tools", lambda: None)
@@ -122,9 +138,12 @@ def test_main_warns_on_stderr_before_seeding(fake_home, monkeypatch, capsys):
     assert "moved from ~/.rubrik" not in captured.out
     assert (fake_home / ".config" / "rubrik-mcp" / "mcp-policy.json").exists()
     assert _snapshot(legacy) == before
+    records = [json.loads(line) for line in audit_log.read_text().splitlines()]
+    assert [r["event"] for r in records] == ["legacy_config_notice"]
     # second start: new policy now exists, so no repeat notice
     server.main()
     assert "moved from ~/.rubrik" not in capsys.readouterr().err
+    assert len(audit_log.read_text().splitlines()) == 1
 
 
 def test_rubrik_dir_honors_env_override(monkeypatch, tmp_path):
