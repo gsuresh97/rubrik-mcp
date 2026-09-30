@@ -243,7 +243,7 @@ When you find yourself asking the same question repeatedly, save it:
 
 > "Save this as a workflow so I can reuse it."
 
-The AI calls `rsc_save_workflow`, which writes a JSON file to the MCP config directory's `workflows/` folder — `~/.rubrik/workflows/` by default, or under `$RUBRIK_MCP_CONFIG_DIR` when set (see [docs/docker.md](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/docker.md) for the containerized case). On the next restart, that workflow is registered as a named MCP tool — a single call instead of multi-step schema discovery. Repeated operations use fewer tokens and respond faster.
+The AI calls `rsc_save_workflow`, which writes a JSON file to the MCP config directory's `workflows/` folder — `~/.config/rubrik-mcp/workflows/` by default, or under `$RUBRIK_MCP_CONFIG_DIR` when set (see [docs/docker.md](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/docker.md) for the containerized case). On the next restart, that workflow is registered as a named MCP tool — a single call instead of multi-step schema discovery. Repeated operations use fewer tokens and respond faster.
 
 Workflow files are plain JSON. Open them in any editor, adjust the query, change the defaults, or share them with your team.
 
@@ -255,10 +255,10 @@ Workflow files are plain JSON. Open them in any editor, adjust the query, change
 | `rsc_protection_gaps` | Out-of-compliance workloads and recent backup failures in one combined call |
 | `rsc_find_and_snapshot` | Find a workload by name, snapshot it, and wait for completion |
 
-Additional community-contributed workflows — threat feed management, SLA operations, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository. Copy any JSON file into the config directory's `workflows/` folder (`~/.rubrik/workflows/` by default, or under `$RUBRIK_MCP_CONFIG_DIR`) and restart your MCP client to install it.
+Additional community-contributed workflows — threat feed management, SLA operations, and more — are available in the [rubrik-community](https://github.com/rubrikinc/rubrik-community) repository. Copy any JSON file into the config directory's `workflows/` folder (`~/.config/rubrik-mcp/workflows/` by default, or under `$RUBRIK_MCP_CONFIG_DIR`) and restart your MCP client to install it.
 
 ---
 
 ## Further reading
 
-For the full built-in tools reference, architecture diagram, the local gating policy (`~/.rubrik/mcp-policy.json`, relocatable via `$RUBRIK_MCP_CONFIG_DIR`), and development setup, see [docs/advanced.md](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/advanced.md). To run the server in a container, see [docs/docker.md](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/docker.md).
+For the full built-in tools reference, architecture diagram, the local gating policy (`~/.config/rubrik-mcp/mcp-policy.json`, relocatable via `$RUBRIK_MCP_CONFIG_DIR`), the audit log (`mcp-audit.log`, in the same config directory), upgrade notes for config previously kept in `~/.rubrik`, and development setup, see [docs/advanced.md](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/advanced.md). To run the server in a container, see [docs/docker.md](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/docker.md).

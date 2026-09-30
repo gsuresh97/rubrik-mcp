@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://developer.rubrik.com",
-  "version": "0.7.20260914",
+  "version": "0.8.20260914",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "rubrik-mcp",
-      "version": "0.7.20260914",
+      "version": "0.8.20260914",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
@@ -46,7 +46,7 @@
         },
         {
           "name": "RUBRIK_MCP_CONFIG_DIR",
-          "description": "Directory for the gating policy and saved workflows. Defaults to ~/.rubrik.",
+          "description": "Directory for the gating policy and saved workflows. Defaults to ~/.config/rubrik-mcp.",
           "format": "filepath",
           "isRequired": false,
           "isSecret": false

@@ -7,7 +7,9 @@ so no credentials are required.
 """
 
 import json
+import logging
 import random
+from pathlib import Path
 
 import pytest
 from graphql import GraphQLSyntaxError
@@ -20,10 +22,128 @@ from rubrik import server
 # policy.py — RUBRIK_MCP_CONFIG_DIR resolution
 # --------------------------------------------------------------------------- #
 
-def test_rubrik_dir_defaults_to_home(monkeypatch):
+@pytest.fixture
+def fake_home(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
     monkeypatch.delenv("RUBRIK_MCP_CONFIG_DIR", raising=False)
-    from pathlib import Path
-    assert policy.rubrik_dir() == Path.home() / ".rubrik"
+    return home
+
+
+def test_rubrik_dir_defaults_to_dot_config(fake_home):
+    assert policy.rubrik_dir() == fake_home / ".config" / "rubrik-mcp"
+    assert policy.policy_path() == fake_home / ".config" / "rubrik-mcp" / "mcp-policy.json"
+
+
+def test_rubrik_dir_override_beats_default(fake_home, monkeypatch, tmp_path):
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path / "custom"))
+    assert policy.rubrik_dir() == tmp_path / "custom"
+
+
+def test_rubrik_dir_empty_override_uses_default(fake_home, monkeypatch):
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", "")
+    assert policy.rubrik_dir() == fake_home / ".config" / "rubrik-mcp"
+
+
+def _make_legacy(home):
+    legacy = home / ".rubrik"
+    (legacy / "workflows").mkdir(parents=True)
+    (legacy / "mcp-policy.json").write_text("{}")
+    (legacy / "workflows" / "w.json").write_text("{}")
+    return legacy
+
+
+def _snapshot(root):
+    return {
+        str(p.relative_to(root)): (p.read_bytes() if p.is_file() else None)
+        for p in sorted(root.rglob("*"))
+    }
+
+
+def test_legacy_notice_when_legacy_exists_and_new_absent(fake_home):
+    _make_legacy(fake_home)
+    notice = policy.legacy_config_notice()
+    assert notice is not None
+    assert "mv ~/.rubrik/mcp-policy.json ~/.config/rubrik-mcp/" in notice
+    assert "mv ~/.rubrik/workflows/* ~/.config/rubrik-mcp/workflows/" in notice
+    assert "Move-Item -Force $HOME\\.rubrik\\mcp-policy.json" in notice
+    assert "Move-Item -Force $HOME\\.rubrik\\workflows\\*" in notice
+    assert "Move-Item $HOME" not in notice
+
+
+def test_legacy_notice_omits_missing_workflows_dir(fake_home):
+    (fake_home / ".rubrik").mkdir()
+    (fake_home / ".rubrik" / "mcp-policy.json").write_text("{}")
+    notice = policy.legacy_config_notice()
+    assert notice is not None
+    assert "~/.rubrik/workflows" not in notice
+    assert "\\.rubrik\\workflows" not in notice
+
+
+def test_legacy_notice_silent_when_new_policy_exists(fake_home):
+    _make_legacy(fake_home)
+    new = fake_home / ".config" / "rubrik-mcp"
+    new.mkdir(parents=True)
+    (new / "mcp-policy.json").write_text("{}")
+    assert policy.legacy_config_notice() is None
+
+
+def test_legacy_notice_silent_when_override_set(fake_home, monkeypatch, tmp_path):
+    _make_legacy(fake_home)
+    monkeypatch.setenv("RUBRIK_MCP_CONFIG_DIR", str(tmp_path / "custom"))
+    assert policy.legacy_config_notice() is None
+
+
+def test_legacy_notice_silent_without_legacy_policy(fake_home):
+    assert policy.legacy_config_notice() is None
+    (fake_home / ".rubrik").mkdir()
+    assert policy.legacy_config_notice() is None
+
+
+def test_legacy_notice_does_not_modify_legacy_dir(fake_home):
+    legacy = _make_legacy(fake_home)
+    before = _snapshot(legacy)
+    policy.legacy_config_notice()
+    assert _snapshot(legacy) == before
+
+
+@pytest.fixture
+def audit_log(monkeypatch, tmp_path):
+    # server.audit_logger is bound to the real config dir at import time.
+    path = tmp_path / "mcp-audit.log"
+    handler = logging.FileHandler(path, encoding="utf-8")
+    audit = logging.getLogger("rubrik.mcp.audit.test")
+    audit.setLevel(logging.INFO)
+    audit.propagate = False
+    audit.addHandler(handler)
+    monkeypatch.setattr(server, "audit_logger", audit)
+    yield path
+    audit.removeHandler(handler)
+    handler.close()
+
+
+def test_main_warns_on_stderr_before_seeding(fake_home, audit_log, monkeypatch, capsys):
+    legacy = _make_legacy(fake_home)
+    before = _snapshot(legacy)
+    monkeypatch.setattr(server, "_register_write_tools", lambda: None)
+    monkeypatch.setattr(server, "_check_schema_sync", lambda: None)
+    monkeypatch.setattr(server, "_load_workflows", lambda: None)
+    monkeypatch.setattr(server.mcp, "run", lambda *a, **k: None)
+    server.main()
+    captured = capsys.readouterr()
+    assert "moved from ~/.rubrik" in captured.err
+    assert "moved from ~/.rubrik" not in captured.out
+    assert (fake_home / ".config" / "rubrik-mcp" / "mcp-policy.json").exists()
+    assert _snapshot(legacy) == before
+    records = [json.loads(line) for line in audit_log.read_text().splitlines()]
+    assert [r["event"] for r in records] == ["legacy_config_notice"]
+    # second start: new policy now exists, so no repeat notice
+    server.main()
+    assert "moved from ~/.rubrik" not in capsys.readouterr().err
+    assert len(audit_log.read_text().splitlines()) == 1
 
 
 def test_rubrik_dir_honors_env_override(monkeypatch, tmp_path):

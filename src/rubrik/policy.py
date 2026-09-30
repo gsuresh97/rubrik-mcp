@@ -1,6 +1,6 @@
 """Allow/deny gating policy for the Rubrik MCP server.
 
-Loaded from ``~/.rubrik/mcp-policy.json`` (or ``$RUBRIK_MCP_CONFIG_DIR/mcp-policy.json``
+Loaded from ``~/.config/rubrik-mcp/mcp-policy.json`` (or ``$RUBRIK_MCP_CONFIG_DIR/mcp-policy.json``
 when ``RUBRIK_MCP_CONFIG_DIR`` is set — useful for containers). This is an MCP-layer control that
 complements RSC's server-side RBAC: RBAC bounds what the configured service
 account *can* do; this policy bounds what the MCP server *will* do, independent
@@ -40,13 +40,53 @@ def rubrik_dir() -> Path:
     """Directory holding the MCP's local config (``mcp-policy.json`` and the
     ``workflows/`` dir).
 
-    Defaults to ``~/.rubrik``. Set ``RUBRIK_MCP_CONFIG_DIR`` to relocate it — this lets a
+    Defaults to ``~/.config/rubrik-mcp`` on every OS. Set ``RUBRIK_MCP_CONFIG_DIR`` to relocate it — this lets a
     containerized server point both the policy file and the workflows dir at a
     single mounted volume, independent of the image's home directory or OS.
     Read live (not cached) so tests and env changes take effect.
     """
     override = os.environ.get("RUBRIK_MCP_CONFIG_DIR")
-    return Path(override) if override else Path.home() / ".rubrik"
+    return Path(override) if override else Path.home() / ".config" / "rubrik-mcp"
+
+
+def legacy_config_notice() -> str | None:
+    """Return a one-time notice when config still lives in the old ``~/.rubrik`` dir.
+
+    Applies only when ``RUBRIK_MCP_CONFIG_DIR`` is unset, the legacy policy file
+    exists, and no policy exists yet at the new location. Once the policy has been
+    moved (or seeded) the notice stops. Nothing under ``~/.rubrik`` is read,
+    modified or deleted — only existence checks.
+    """
+    if os.environ.get("RUBRIK_MCP_CONFIG_DIR"):
+        return None
+    legacy = Path.home() / ".rubrik"
+    try:
+        if not (legacy / "mcp-policy.json").exists() or policy_path().exists():
+            return None
+        has_workflows = (legacy / "workflows").exists()
+    except OSError:
+        return None
+    new = rubrik_dir()
+    posix = "mkdir -p ~/.config/rubrik-mcp && mv ~/.rubrik/mcp-policy.json ~/.config/rubrik-mcp/"
+    windows = (
+        "New-Item -ItemType Directory -Force $HOME\\.config\\rubrik-mcp; "
+        "Move-Item -Force $HOME\\.rubrik\\mcp-policy.json $HOME\\.config\\rubrik-mcp\\"
+    )
+    if has_workflows:
+        posix += (
+            " && mkdir -p ~/.config/rubrik-mcp/workflows"
+            " && mv ~/.rubrik/workflows/* ~/.config/rubrik-mcp/workflows/"
+        )
+        windows += (
+            "; New-Item -ItemType Directory -Force $HOME\\.config\\rubrik-mcp\\workflows; "
+            "Move-Item -Force $HOME\\.rubrik\\workflows\\* $HOME\\.config\\rubrik-mcp\\workflows\\"
+        )
+    return (
+        f"the config directory moved from ~/.rubrik to {new}. Your existing "
+        "policy and workflows are NOT being used; a new default policy is "
+        f"created at startup. To keep your old ones, stop the server and run: {posix} "
+        f"(Windows PowerShell: {windows}) — this overwrites the new default policy."
+    )
 
 
 def policy_path() -> Path:
