@@ -34,6 +34,8 @@ import os
 import re
 import sys
 import time
+import urllib.request
+import uuid
 from datetime import datetime, timedelta, timezone
 from logging.handlers import RotatingFileHandler
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
@@ -1389,6 +1391,236 @@ def rsc_assign_sla(
     )
     raw = client.execute(mutation, variables={"input": input_payload})
     return _data_or_raise(raw, "assignSla")
+
+
+
+_PCAP_OPERATIONS = {"LIST", "CRAWL", "STAT", "READ", "FSSTAT"}
+_PCAP_PROTOCOLS = {"NFS", "NFS4", "SMB", "S3_SOURCE"}
+_PCAP_TERMINAL = {"SUCCESS", "FAILURE"}
+_PCAP_MAX_DURATION_SECONDS = 300
+_PCAP_POLL_INTERVAL_SECONDS = 3
+# Time allowed past the capture duration for the VM to pick up the request,
+# finish the operation and upload the pcap before the tool stops waiting.
+_PCAP_WAIT_SLACK_SECONDS = 90
+_HARDWARE_ID_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+
+_PCAP_SHARE_QUERY = (
+    "query PcapShare($fid: UUID!) { cloudDirectNasShare(fid: $fid) { "
+    "id cloudDirectId clusterUuid name exportPath } }"
+)
+_PCAP_SITES_QUERY = (
+    "query PcapSites { allCloudDirectSites { clusterUuid name "
+    "deviceDetails { hardwareId lastState lastConnectedAt removedAt } } }"
+)
+_PCAP_START_MUTATION = (
+    "mutation StartPcap($input: StartCloudDirectPacketCaptureInput!) { "
+    "startCloudDirectPacketCapture(input: $input) { capture { captureId state } } }"
+)
+_PCAP_STATUS_FIELDS = (
+    "captureId hardwareId state errorMessage filter "
+    "resource { kind name clusterResourceId protocol hosts } "
+    "result { operationOutput operationError captureFileSizeBytes }"
+)
+_PCAP_STATUS_QUERY = (
+    "query PcapStatus($clusterUuid: UUID!, $hardwareId: String!, $captureId: String!) { "
+    "cloudDirectPacketCapture(clusterUuid: $clusterUuid, hardwareId: $hardwareId, "
+    f"captureId: $captureId) {{ {_PCAP_STATUS_FIELDS} }} }}"
+)
+_PCAP_FILE_QUERY = (
+    "query PcapFile($clusterUuid: UUID!, $hardwareId: String!, $captureId: String!) { "
+    "cloudDirectPacketCaptureFile(clusterUuid: $clusterUuid, hardwareId: $hardwareId, "
+    "captureId: $captureId) { fileId } }"
+)
+
+
+def _pick_capture_vm(sites: list, cluster_uuid: str) -> str:
+    """Return the hardware ID of the most recently connected healthy VM in the cluster."""
+    site = next((s for s in sites if s.get("clusterUuid") == cluster_uuid), None)
+    if site is None:
+        raise ValueError(f"No Cloud Direct site found for cluster {cluster_uuid}")
+    devices = site.get("deviceDetails") or []
+    healthy = [d for d in devices if d.get("lastState") == "HEALTHY" and not d.get("removedAt")]
+    if not healthy:
+        states = {d.get("hardwareId"): d.get("lastState") for d in devices}
+        raise ValueError(
+            f"No healthy VM in Cloud Direct site '{site.get('name')}' ({cluster_uuid}). "
+            f"VM states: {states}. Pass hardware_id to pick a VM explicitly."
+        )
+    healthy.sort(key=lambda d: d.get("lastConnectedAt") or "", reverse=True)
+    return healthy[0]["hardwareId"]
+
+
+def _download_rsc_file(client: RSCClient, file_id: str, dest: Path) -> int:
+    """Download a download-service file to dest and return its size in bytes.
+
+    rsc-client has no download API, so this reuses the GraphQL endpoint's auth
+    headers and TLS trust settings against RSC's /file-downloads/ route.
+    """
+    endpoint = client.endpoint
+    base_url = endpoint.url.removesuffix("/api/graphql")
+    request = urllib.request.Request(
+        f"{base_url}/file-downloads/{uuid.UUID(file_id)}",
+        headers=dict(endpoint.base_headers),
+    )
+    with endpoint.urlopen(request, timeout=60) as resp:
+        data = resp.read()
+    dest.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    return len(data)
+
+
+def clouddirect_packet_capture(
+    share_id: str,
+    operation: str = "LIST",
+    protocol: str | None = None,
+    path: str | None = None,
+    max_count: int | None = None,
+    read_size_bytes: int | None = None,
+    duration_seconds: int = 30,
+    hardware_id: str | None = None,
+    output_dir: str | None = None,
+) -> dict:
+    """Capture network traffic between a NAS Cloud Direct VM and a NAS share.
+
+    WRITE OPERATION — runs tcpdump and a NAS operation on a NAS Cloud Direct VM
+    in your environment. Only invoke on the user's explicit request.
+
+    Starts a packet capture on a VM of the share's NAS Cloud Direct cluster,
+    runs the requested operation against the share during the capture, waits
+    for the capture to finish, and downloads the pcap to a local file. Use it
+    to debug share access problems (mount failures, permission errors, slow
+    listings) from the VM's point of view. Read the pcap with tshark or
+    Wireshark.
+
+    Use rsc_execute_operation on cloudDirectNasShares to find the share's id.
+
+    Args:
+        share_id: RSC ID (fid) of the NAS Cloud Direct share.
+        operation: Operation to run against the share during the capture. One of
+            "LIST" (default), "CRAWL" (recursive list), "STAT", "READ" (needs
+            path), or "FSSTAT" (NFS only).
+        protocol: Protocol to reach the share: "NFS", "NFS4", "SMB" or
+            "S3_SOURCE". Defaults to the protocol the share is backed up with.
+        path: Path within the share for the operation.
+        max_count: Maximum entries for LIST and CRAWL. Defaults to 10.
+        read_size_bytes: Bytes to read for READ.
+        duration_seconds: Maximum capture length, 1-300. Default 30. The
+            capture stops early once the operation finishes.
+        hardware_id: Hardware ID of the VM to capture on. Defaults to the most
+            recently connected healthy VM in the share's cluster.
+        output_dir: Directory for the pcap. Defaults to the packet-captures/
+            dir under the MCP config directory.
+
+    Returns:
+        Dict with state (SUCCESS or FAILURE), pcap_path (local pcap file, on
+        SUCCESS), capture_id, cluster_uuid, hardware_id, share, resource
+        (resolved hosts and protocol), filter (tcpdump expression),
+        error_message, operation_output, operation_error, and
+        capture_file_size_bytes. A SUCCESS state can still carry an
+        operation_error: the capture succeeded but the operation failed, which
+        is often what is being debugged. timed_out is set when the capture did
+        not finish in time.
+    """
+    operation = operation.upper()
+    if operation not in _PCAP_OPERATIONS:
+        raise ValueError(f"operation must be one of {sorted(_PCAP_OPERATIONS)}, got {operation!r}")
+    if protocol is not None:
+        protocol = protocol.upper()
+        if protocol not in _PCAP_PROTOCOLS:
+            raise ValueError(f"protocol must be one of {sorted(_PCAP_PROTOCOLS)}, got {protocol!r}")
+    if not 1 <= duration_seconds <= _PCAP_MAX_DURATION_SECONDS:
+        raise ValueError(f"duration_seconds must be between 1 and {_PCAP_MAX_DURATION_SECONDS}")
+    if operation == "READ" and not path:
+        raise ValueError("operation READ needs a path")
+    if hardware_id is not None and not _HARDWARE_ID_RE.match(hardware_id):
+        raise ValueError(f"hardware_id must be a 40-character hex string, got {hardware_id!r}")
+    share_id = str(uuid.UUID(share_id))
+
+    client = _mcp_rsc_client()
+    share = _data_or_raise(
+        client.execute(_PCAP_SHARE_QUERY, variables={"fid": share_id}),
+        "cloudDirectNasShare",
+    )
+    if not share.get("cloudDirectId"):
+        raise ValueError(f"No NAS Cloud Direct share with id {share_id}")
+    cluster_uuid = share["clusterUuid"]
+    if hardware_id is None:
+        sites = _data_or_raise(client.execute(_PCAP_SITES_QUERY), "allCloudDirectSites")
+        hardware_id = _pick_capture_vm(sites or [], cluster_uuid)
+
+    # polarisservice resolves shares by their Cloud Direct ID, not the RSC fid.
+    start_input: dict[str, Any] = {
+        "clusterUuid": cluster_uuid,
+        "hardwareId": hardware_id,
+        "resourceId": share["cloudDirectId"],
+        "operation": operation,
+        "maxDurationSeconds": duration_seconds,
+    }
+    optional_input = {
+        "protocol": protocol,
+        "path": path,
+        "maxCount": max_count,
+        "readSizeBytes": read_size_bytes,
+    }
+    start_input.update({k: v for k, v in optional_input.items() if v is not None})
+    started = _data_or_raise(
+        client.execute(_PCAP_START_MUTATION, variables={"input": start_input}),
+        "startCloudDirectPacketCapture",
+    )
+    capture_id = (started.get("capture") or {}).get("captureId")
+    if not capture_id:
+        raise RuntimeError(f"startCloudDirectPacketCapture returned no capture id: {started}")
+
+    ids = {"clusterUuid": cluster_uuid, "hardwareId": hardware_id, "captureId": capture_id}
+    deadline = time.monotonic() + duration_seconds + _PCAP_WAIT_SLACK_SECONDS
+    while True:
+        status = _data_or_raise(
+            client.execute(_PCAP_STATUS_QUERY, variables=ids),
+            "cloudDirectPacketCapture",
+        )
+        if status.get("state") in _PCAP_TERMINAL:
+            break
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(_PCAP_POLL_INTERVAL_SECONDS, remaining))
+
+    result_fields = status.get("result") or {}
+    out: dict[str, Any] = {
+        "state": status.get("state"),
+        "capture_id": capture_id,
+        "cluster_uuid": cluster_uuid,
+        "hardware_id": hardware_id,
+        "share": {
+            "id": share_id,
+            "cloud_direct_id": share["cloudDirectId"],
+            "name": share.get("name"),
+        },
+        "resource": status.get("resource"),
+        "filter": status.get("filter"),
+        "error_message": status.get("errorMessage"),
+        "operation_output": result_fields.get("operationOutput"),
+        "operation_error": result_fields.get("operationError"),
+        "capture_file_size_bytes": result_fields.get("captureFileSizeBytes"),
+    }
+    if status.get("state") not in _PCAP_TERMINAL:
+        out["timed_out"] = True
+        return out
+    if status.get("state") != "SUCCESS":
+        return out
+
+    file_reply = _data_or_raise(
+        client.execute(_PCAP_FILE_QUERY, variables=ids),
+        "cloudDirectPacketCaptureFile",
+    )
+    out["file_id"] = file_reply.get("fileId")
+    dest_dir = Path(output_dir).expanduser() if output_dir else policy.rubrik_dir() / "packet-captures"
+    dest = (dest_dir / f"packet-capture-{capture_id}.pcap").resolve()
+    _download_rsc_file(client, out["file_id"], dest)
+    out["pcap_path"] = str(dest)
+    return out
 
 
 _EVENT_FIELDS = (

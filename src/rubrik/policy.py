@@ -104,6 +104,7 @@ WRITE_TOOL_NAMES = (
     "rsc_take_on_demand_snapshot",
     "rsc_assign_sla",
     "rsc_onboard_host",
+    "clouddirect_packet_capture",
 )
 
 _SEED_COMMENT = (
