@@ -224,3 +224,142 @@ def test_download_rsc_file_uses_endpoint_auth_and_writes_private_file(tmp_path):
     assert size == 8
     assert dest.read_bytes() == b"\xd4\xc3\xb2\xa1pcap"
     assert stat.S_IMODE(os.stat(dest).st_mode) == 0o600
+
+
+MOUNT_DENIED_OUTPUT = (
+    "[2026-10-06T04:10:00.000000001Z] [INFO] (main.go:595) Connecting to nfs host 192.0.2.10, path /ifs/data\n"
+    "[2026-10-06T04:10:00.000000002Z] [ERROR] (main.go:348) Unable to connect to nfs host 192.0.2.10: "
+    "could not mount: nfs access denied\n"
+)
+
+
+def test_operation_log_errors_keeps_only_error_lines():
+    assert server._operation_log_errors(MOUNT_DENIED_OUTPUT) == [
+        "[2026-10-06T04:10:00.000000002Z] [ERROR] (main.go:348) Unable to connect to nfs host 192.0.2.10: "
+        "could not mount: nfs access denied",
+    ]
+    assert server._operation_log_errors("[x] [INFO] fine\n[y] [WARNING] slow") == []
+    assert server._operation_log_errors(None) == []
+
+
+class _MountDeniedClient(_FakeClient):
+    """The share tool logs the mount failure and exits 0, so op_error stays empty."""
+
+    def execute(self, operation, variables=None, max_records=None):
+        raw = super().execute(operation, variables, max_records)
+        status = raw["data"].get("cloudDirectPacketCapture")
+        if status and status.get("result"):
+            status["result"]["operationOutput"] = MOUNT_DENIED_OUTPUT
+            status["result"]["operationError"] = ""
+        return raw
+
+
+def test_capture_succeeds_and_surfaces_failed_operation(monkeypatch, downloads, tmp_path):
+    _use_client(monkeypatch, _MountDeniedClient(["SUCCESS"]))
+
+    out = server.clouddirect_packet_capture(SHARE_FID, output_dir=str(tmp_path))
+
+    assert out["state"] == "SUCCESS"
+    assert out["operation_error"] == ""
+    assert len(out["operation_log_errors"]) == 1
+    assert "could not mount: nfs access denied" in out["operation_log_errors"][0]
+    assert out["pcap_path"]
+
+
+TARGET_FID = "c1d2e3f4-a5b6-5c7d-8e9f-0a1b2c3d4e5f"
+TARGET_RSC_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+UNMANAGED_TARGET_FID = "d1e2f3a4-b5c6-5d7e-8f9a-0b1c2d3e4f5a"
+
+
+class _TargetClient(_FakeClient):
+    """Adds ncdTargets: CLUSTER has one RSC-managed and one unmanaged target."""
+
+    def execute(self, operation, variables=None, max_records=None):
+        if "ncdTargets(" not in operation:
+            return super().execute(operation, variables, max_records)
+        self.calls.append((operation, variables))
+        targets = []
+        if variables["clusterUuid"] == CLUSTER:
+            targets = [
+                {"id": TARGET_FID, "rscId": TARGET_RSC_ID, "name": "s3-target", "provider": "s3",
+                 "host": "", "dataBucket": "backups"},
+                {"id": UNMANAGED_TARGET_FID, "rscId": "", "name": "unmanaged", "provider": "s3",
+                 "host": "", "dataBucket": "other"},
+            ]
+        return {"data": {"ncdTargets": {"targets": targets}}}
+
+
+def test_target_write_uses_managed_id_and_write_options(monkeypatch, downloads, tmp_path):
+    client = _use_client(monkeypatch, _TargetClient(["EXECUTING", "SUCCESS"]))
+
+    out = server.clouddirect_packet_capture(
+        target_id=TARGET_FID, write_size_mb=1, write_parallelism=2, filter_port=443, output_dir=str(tmp_path),
+    )
+
+    # Every cluster is searched until the target is found.
+    assert [v["clusterUuid"] for v in client.ops("ncdTargets(")] == ["other-cluster", CLUSTER]
+    (start_vars,) = client.ops("startCloudDirectPacketCapture")
+    assert start_vars["input"] == {
+        "clusterUuid": CLUSTER,
+        "hardwareId": RECENT_VM,
+        "resourceId": TARGET_RSC_ID,
+        "operation": "WRITE",
+        "maxDurationSeconds": 30,
+        "writeSizeMb": 1,
+        "writeParallelism": 2,
+        "filterPort": 443,
+    }
+    assert out["state"] == "SUCCESS"
+    assert out["target"]["rsc_id"] == TARGET_RSC_ID
+    assert out["target"]["name"] == "s3-target"
+    assert "share" not in out
+    assert out["pcap_path"]
+
+
+def test_target_lookup_by_managed_id_in_given_cluster(monkeypatch, downloads, tmp_path):
+    client = _use_client(monkeypatch, _TargetClient(["SUCCESS"]))
+
+    server.clouddirect_packet_capture(target_id=TARGET_RSC_ID, cluster_uuid=CLUSTER, output_dir=str(tmp_path))
+
+    assert [v["clusterUuid"] for v in client.ops("ncdTargets(")] == [CLUSTER]
+    (start_vars,) = client.ops("startCloudDirectPacketCapture")
+    assert start_vars["input"]["resourceId"] == TARGET_RSC_ID
+
+
+def test_unmanaged_target_rejected_before_capture(monkeypatch, downloads):
+    client = _use_client(monkeypatch, _TargetClient(["SUCCESS"]))
+
+    with pytest.raises(ValueError, match="not managed by RSC"):
+        server.clouddirect_packet_capture(target_id=UNMANAGED_TARGET_FID)
+    assert client.ops("startCloudDirectPacketCapture") == []
+
+
+def test_unknown_target_rejected(monkeypatch, downloads):
+    _use_client(monkeypatch, _TargetClient(["SUCCESS"]))
+
+    with pytest.raises(ValueError, match="No NAS Cloud Direct backup target"):
+        server.clouddirect_packet_capture(target_id="e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b")
+
+
+@pytest.mark.parametrize("kwargs", [
+    {},
+    {"share_id": SHARE_FID, "target_id": TARGET_FID},
+    {"target_id": TARGET_FID, "operation": "LIST"},
+    {"target_id": TARGET_FID, "path": "/dir"},
+    {"target_id": TARGET_FID, "protocol": "NFS"},
+    {"target_id": TARGET_FID, "write_size_mb": 2500, "write_parallelism": 3},
+    {"target_id": TARGET_FID, "write_iterations": 101},
+    {"target_id": TARGET_FID, "write_size_mb": -1},
+    {"share_id": SHARE_FID, "operation": "WRITE"},
+    {"share_id": SHARE_FID, "write_iterations": 2},
+    {"share_id": SHARE_FID, "cluster_uuid": CLUSTER},
+    {"share_id": SHARE_FID, "filter_host": "not-an-ip"},
+    {"share_id": SHARE_FID, "filter_port": 70000},
+])
+def test_capture_rejects_mismatched_options_before_calling_rsc(monkeypatch, kwargs):
+    def _no_client():
+        raise AssertionError("RSC must not be called for invalid input")
+
+    monkeypatch.setattr(server, "_mcp_rsc_client", _no_client)
+    with pytest.raises(ValueError):
+        server.clouddirect_packet_capture(**kwargs)

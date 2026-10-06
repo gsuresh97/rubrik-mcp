@@ -64,7 +64,7 @@ Raw GraphQL execution is read-only. If you ask for a write operation not covered
 | `rsc_wait_for_job` | Poll a job until completion |
 | `rsc_onboard_host` | Register a physical or virtual host |
 | `rsc_assign_sla` | Assign, unassign, or set do-not-protect on workloads |
-| `clouddirect_packet_capture` | Capture a NAS Cloud Direct VM's traffic to a share around a list, read, or stat, and download the pcap |
+| `clouddirect_packet_capture` | Capture a NAS Cloud Direct VM's traffic to a share (list, read, stat) or a backup target (sized test writes), and download the pcap |
 
 **Workflow management** — service account required
 

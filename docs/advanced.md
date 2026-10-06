@@ -30,7 +30,7 @@ These tools work entirely offline using a pre-built index of the RSC schema. No 
 | `rsc_wait_for_job` | Poll a backup job until it completes |
 | `rsc_assign_sla` | Assign an SLA domain to one or more workloads |
 | `rsc_onboard_host` | Register a host so Rubrik can protect workloads running on it |
-| `clouddirect_packet_capture` | Capture traffic between a NAS Cloud Direct VM and a share while running a list, crawl, stat, read, or fsstat, and download the pcap locally |
+| `clouddirect_packet_capture` | Capture traffic between a NAS Cloud Direct VM and a share (list, crawl, stat, read, fsstat) or a backup target (test writes of configurable size, parallelism, and iterations), and download the pcap locally |
 
 ### Community workflow examples
 

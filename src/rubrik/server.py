@@ -28,6 +28,7 @@ User workflows (loaded from ~/.config/rubrik-mcp/workflows/ or $RUBRIK_MCP_CONFI
 
 import functools
 import inspect
+import ipaddress
 import json
 import logging
 import os
@@ -1394,7 +1395,8 @@ def rsc_assign_sla(
 
 
 
-_PCAP_OPERATIONS = {"LIST", "CRAWL", "STAT", "READ", "FSSTAT"}
+_PCAP_SHARE_OPERATIONS = {"LIST", "CRAWL", "STAT", "READ", "FSSTAT"}
+_PCAP_TARGET_OPERATIONS = {"WRITE"}
 _PCAP_PROTOCOLS = {"NFS", "NFS4", "SMB", "S3_SOURCE"}
 _PCAP_TERMINAL = {"SUCCESS", "FAILURE"}
 _PCAP_MAX_DURATION_SECONDS = 300
@@ -1402,11 +1404,19 @@ _PCAP_POLL_INTERVAL_SECONDS = 3
 # Time allowed past the capture duration for the VM to pick up the request,
 # finish the operation and upload the pcap before the tool stops waiting.
 _PCAP_WAIT_SLACK_SECONDS = 90
+# polarisservice's limits on a target write: speedtest caps one round of
+# parallel uploads at 5000 MB, and a write repeats at most 100 rounds.
+_PCAP_MAX_WRITE_ROUND_MB = 5000
+_PCAP_MAX_WRITE_ITERATIONS = 100
 _HARDWARE_ID_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 _PCAP_SHARE_QUERY = (
     "query PcapShare($fid: UUID!) { cloudDirectNasShare(fid: $fid) { "
     "id cloudDirectId clusterUuid name exportPath } }"
+)
+_PCAP_TARGETS_QUERY = (
+    "query PcapTargets($clusterUuid: UUID!) { ncdTargets(clusterUuid: $clusterUuid) { "
+    "targets { id rscId name provider host dataBucket } } }"
 )
 _PCAP_SITES_QUERY = (
     "query PcapSites { allCloudDirectSites { clusterUuid name "
@@ -1433,6 +1443,14 @@ _PCAP_FILE_QUERY = (
 )
 
 
+_OPERATION_LOG_ERROR_RE = re.compile(r"\[(?:ERROR|FATAL)\]")
+
+
+def _operation_log_errors(output: str | None) -> list[str]:
+    """Return the [ERROR]/[FATAL] log lines from an operation's output."""
+    return [line.strip() for line in (output or "").splitlines() if _OPERATION_LOG_ERROR_RE.search(line)]
+
+
 def _pick_capture_vm(sites: list, cluster_uuid: str) -> str:
     """Return the hardware ID of the most recently connected healthy VM in the cluster."""
     site = next((s for s in sites if s.get("clusterUuid") == cluster_uuid), None)
@@ -1448,6 +1466,60 @@ def _pick_capture_vm(sites: list, cluster_uuid: str) -> str:
         )
     healthy.sort(key=lambda d: d.get("lastConnectedAt") or "", reverse=True)
     return healthy[0]["hardwareId"]
+
+
+def _find_capture_target(
+    client: RSCClient,
+    cluster_uuids: list[str],
+    target_id: str,
+) -> tuple[str, dict]:
+    """Find a backup target by its RSC ID or managed ID; return (cluster_uuid, target)."""
+    for cluster_uuid in cluster_uuids:
+        reply = _data_or_raise(
+            client.execute(_PCAP_TARGETS_QUERY, variables={"clusterUuid": cluster_uuid}),
+            "ncdTargets",
+        )
+        for target in reply.get("targets") or []:
+            if target_id in (target.get("id"), target.get("rscId")):
+                return cluster_uuid, target
+    raise ValueError(f"No NAS Cloud Direct backup target with id {target_id}")
+
+
+def _validate_capture_request(
+    operation: str,
+    is_target: bool,
+    protocol: str | None,
+    path: str | None,
+    share_options: dict[str, Any],
+    write_options: dict[str, Any],
+) -> None:
+    """Reject options that do not apply to the resource kind or exceed polarisservice limits."""
+    if is_target:
+        if operation not in _PCAP_TARGET_OPERATIONS:
+            raise ValueError(f"targets only support operation WRITE, got {operation!r}")
+        given = sorted(k for k, v in share_options.items() if v is not None)
+        if given:
+            raise ValueError(f"{given} only apply to share operations")
+        size_mb = write_options["write_size_mb"] or 1
+        parallelism = write_options["write_parallelism"] or 1
+        iterations = write_options["write_iterations"] or 1
+        if min(size_mb, parallelism, iterations) < 1:
+            raise ValueError("write_size_mb, write_parallelism and write_iterations must be positive")
+        if size_mb * parallelism > _PCAP_MAX_WRITE_ROUND_MB:
+            raise ValueError(f"write_size_mb × write_parallelism must be at most {_PCAP_MAX_WRITE_ROUND_MB}")
+        if iterations > _PCAP_MAX_WRITE_ITERATIONS:
+            raise ValueError(f"write_iterations must be at most {_PCAP_MAX_WRITE_ITERATIONS}")
+        return
+
+    if operation not in _PCAP_SHARE_OPERATIONS:
+        raise ValueError(f"share operation must be one of {sorted(_PCAP_SHARE_OPERATIONS)}, got {operation!r}")
+    given = sorted(k for k, v in write_options.items() if v is not None)
+    if given:
+        raise ValueError(f"{given} only apply to target writes")
+    if protocol is not None and protocol not in _PCAP_PROTOCOLS:
+        raise ValueError(f"protocol must be one of {sorted(_PCAP_PROTOCOLS)}, got {protocol!r}")
+    if operation == "READ" and not path:
+        raise ValueError("operation READ needs a path")
 
 
 def _download_rsc_file(client: RSCClient, file_id: str, dest: Path) -> int:
@@ -1472,89 +1544,200 @@ def _download_rsc_file(client: RSCClient, file_id: str, dest: Path) -> int:
 
 
 def clouddirect_packet_capture(
-    share_id: str,
-    operation: str = "LIST",
+    share_id: str | None = None,
+    target_id: str | None = None,
+    operation: str | None = None,
     protocol: str | None = None,
     path: str | None = None,
     max_count: int | None = None,
     read_size_bytes: int | None = None,
+    write_size_mb: int | None = None,
+    write_parallelism: int | None = None,
+    write_iterations: int | None = None,
+    filter_host: str | None = None,
+    filter_port: int | None = None,
     duration_seconds: int = 30,
+    cluster_uuid: str | None = None,
     hardware_id: str | None = None,
     output_dir: str | None = None,
 ) -> dict:
-    """Capture network traffic between a NAS Cloud Direct VM and a NAS share.
+    """Capture network traffic between a NAS Cloud Direct VM and a NAS share or backup target.
 
-    WRITE OPERATION — runs tcpdump and a NAS operation on a NAS Cloud Direct VM
-    in your environment. Only invoke on the user's explicit request.
+    WRITE OPERATION — runs tcpdump and a share operation or a target write on
+    a NAS Cloud Direct VM in your environment. Only invoke on the user's
+    explicit request.
 
-    Starts a packet capture on a VM of the share's NAS Cloud Direct cluster,
-    runs the requested operation against the share during the capture, waits
-    for the capture to finish, and downloads the pcap to a local file. Use it
-    to debug share access problems (mount failures, permission errors, slow
-    listings) from the VM's point of view. Read the pcap with tshark or
-    Wireshark.
+    Starts a packet capture on a VM of the resource's NAS Cloud Direct
+    cluster, runs the operation during the capture, waits for the capture to
+    finish, and downloads the pcap to a local file. Use it to debug share
+    access problems (mount failures, permission errors, slow listings) or
+    target write problems (credentials, TLS, proxy, throughput) from the VM's
+    point of view. Read the pcap with tshark or Wireshark.
 
-    Use rsc_execute_operation on cloudDirectNasShares to find the share's id.
+    Pass exactly one of share_id or target_id. Find share ids with
+    rsc_execute_operation on cloudDirectNasShares, and target ids with
+    ncdTargets(clusterUuid).
 
     Args:
         share_id: RSC ID (fid) of the NAS Cloud Direct share.
-        operation: Operation to run against the share during the capture. One of
-            "LIST" (default), "CRAWL" (recursive list), "STAT", "READ" (needs
-            path), or "FSSTAT" (NFS only).
-        protocol: Protocol to reach the share: "NFS", "NFS4", "SMB" or
-            "S3_SOURCE". Defaults to the protocol the share is backed up with.
-        path: Path within the share for the operation.
-        max_count: Maximum entries for LIST and CRAWL. Defaults to 10.
-        read_size_bytes: Bytes to read for READ.
+        target_id: RSC ID (id) or RSC managed ID (rscId) of the NAS Cloud
+            Direct backup target, as returned by ncdTargets.
+        operation: For shares: "LIST" (default), "CRAWL" (recursive list),
+            "STAT", "READ" (needs path), or "FSSTAT" (NFS only). For targets:
+            "WRITE" (default and only choice).
+        protocol: Share only. Protocol to reach the share: "NFS", "NFS4",
+            "SMB" or "S3_SOURCE". Defaults to the share's backup protocol.
+        path: Share only. Path within the share for the operation.
+        max_count: Share only. Maximum entries for LIST and CRAWL. Defaults
+            to 10.
+        read_size_bytes: Share only. Bytes to read for READ.
+        write_size_mb: Target only. Size of each uploaded object in MB.
+            Default 1.
+        write_parallelism: Target only. Objects uploaded in parallel per
+            iteration. Default 1. write_size_mb × write_parallelism must be at
+            most 5000.
+        write_iterations: Target only. Times the parallel uploads repeat, at
+            most 100. Default 1.
+        filter_host: IP address to capture traffic to and from, instead of
+            the resource's IP-address hosts.
+        filter_port: Port to capture traffic on, e.g. 2049 for NFS, or 443 or
+            80 for an S3 target depending on whether it uses SSL.
         duration_seconds: Maximum capture length, 1-300. Default 30. The
             capture stops early once the operation finishes.
+        cluster_uuid: Target only. Cluster to look the target up in. Defaults
+            to searching every NAS Cloud Direct cluster.
         hardware_id: Hardware ID of the VM to capture on. Defaults to the most
-            recently connected healthy VM in the share's cluster.
+            recently connected healthy VM in the resource's cluster.
         output_dir: Directory for the pcap. Defaults to the packet-captures/
             dir under the MCP config directory.
 
     Returns:
         Dict with state (SUCCESS or FAILURE), pcap_path (local pcap file, on
-        SUCCESS), capture_id, cluster_uuid, hardware_id, share, resource
-        (resolved hosts and protocol), filter (tcpdump expression),
-        error_message, operation_output, operation_error, and
-        capture_file_size_bytes. A SUCCESS state can still carry an
-        operation_error: the capture succeeded but the operation failed, which
-        is often what is being debugged. timed_out is set when the capture did
-        not finish in time.
+        SUCCESS), capture_id, cluster_uuid, hardware_id, share or target,
+        resource (resolved hosts and protocol), filter (packet filter in
+        tcpdump syntax), error_message, operation_output, operation_error,
+        operation_log_errors, and capture_file_size_bytes. timed_out is set
+        when the capture did not finish in time.
+
+    Interpreting the result:
+        - state describes the capture, not the operation. SUCCESS means the
+          pcap was captured and downloaded; FAILURE means the capture or its
+          upload failed (see error_message). A failed mount, listing, read, or
+          write still yields SUCCESS with a pcap, which is usually what is
+          being debugged.
+        - To tell whether the operation succeeded, read operation_log_errors
+          and operation_output, not just operation_error. The share tools log
+          failures such as "could not mount: nfs access denied" as [ERROR]
+          lines in operation_output and still exit 0, so operation_error is
+          empty for them. operation_error is set only when the tool exits
+          non-zero, times out, or cannot start. operation_log_errors lists the
+          [ERROR] lines found in operation_output (best effort).
+        - An operation that fails early produces a small pcap. A refused NFSv3
+          mount, for example, contains only portmap GETPORT calls and a MOUNT
+          MNT reply with an error status, and no NFS calls.
+        - A target write uploads write_parallelism objects of write_size_mb
+          each, write_iterations times, then reads them back and deletes them.
+          It writes to its own rubrik-speedtest-<targetID> bucket, which it
+          creates with the target's credentials and does not delete, not to
+          the target's data bucket. The capture filter covers only target
+          hosts that are IP addresses, so for a hostname-based target such as
+          an S3 endpoint it may be empty and the pcap then holds all of the
+          VM's traffic. To narrow it, pass filter_port: 443 if the target uses
+          SSL, 80 if not. The bucket manager line in operation_output shows
+          enableSSL; a wrong port captures nothing.
+        - Writes and read-backs are captured in full and the capture is capped
+          at about 5 MiB, so keep write_size_mb × write_parallelism ×
+          write_iterations around 2 MB.
+        - MOUNT and NFS RPC often run on ports that decoders do not recognize
+          (the portmap GETPORT replies show which). tcpdump does not decode
+          ONC RPC over TCP; with tshark, map the ports explicitly, e.g.
+          tshark -r <pcap> -d tcp.port==<port>,rpc. A target write over
+          HTTPS shows connection setup, TLS handshakes, timing, and
+          throughput, not the S3 requests; a target with SSL disabled sends
+          plain HTTP, so the S3 requests and object data are readable.
+        - capture_file_size_bytes of 24 is an empty pcap (the file header
+          only): the filter matched no traffic. Check filter, filter_port,
+          and the resource hosts.
     """
-    operation = operation.upper()
-    if operation not in _PCAP_OPERATIONS:
-        raise ValueError(f"operation must be one of {sorted(_PCAP_OPERATIONS)}, got {operation!r}")
+    if (share_id is None) == (target_id is None):
+        raise ValueError("pass exactly one of share_id or target_id")
+    is_target = target_id is not None
+    operation = (operation or ("WRITE" if is_target else "LIST")).upper()
     if protocol is not None:
         protocol = protocol.upper()
-        if protocol not in _PCAP_PROTOCOLS:
-            raise ValueError(f"protocol must be one of {sorted(_PCAP_PROTOCOLS)}, got {protocol!r}")
+    share_options = {"protocol": protocol, "path": path, "max_count": max_count, "read_size_bytes": read_size_bytes}
+    write_options = {
+        "write_size_mb": write_size_mb,
+        "write_parallelism": write_parallelism,
+        "write_iterations": write_iterations,
+    }
+    _validate_capture_request(operation, is_target, protocol, path, share_options, write_options)
     if not 1 <= duration_seconds <= _PCAP_MAX_DURATION_SECONDS:
         raise ValueError(f"duration_seconds must be between 1 and {_PCAP_MAX_DURATION_SECONDS}")
-    if operation == "READ" and not path:
-        raise ValueError("operation READ needs a path")
     if hardware_id is not None and not _HARDWARE_ID_RE.match(hardware_id):
         raise ValueError(f"hardware_id must be a 40-character hex string, got {hardware_id!r}")
-    share_id = str(uuid.UUID(share_id))
+    if filter_host is not None:
+        filter_host = str(ipaddress.ip_address(filter_host))
+    if filter_port is not None and not 1 <= filter_port <= 65535:
+        raise ValueError(f"filter_port must be between 1 and 65535, got {filter_port}")
+    if share_id is not None:
+        share_id = str(uuid.UUID(share_id))
+    else:
+        target_id = str(uuid.UUID(target_id))
+    if cluster_uuid is not None:
+        if not is_target:
+            raise ValueError("cluster_uuid only applies to target captures; a share's cluster is looked up")
+        cluster_uuid = str(uuid.UUID(cluster_uuid))
 
     client = _mcp_rsc_client()
-    share = _data_or_raise(
-        client.execute(_PCAP_SHARE_QUERY, variables={"fid": share_id}),
-        "cloudDirectNasShare",
-    )
-    if not share.get("cloudDirectId"):
-        raise ValueError(f"No NAS Cloud Direct share with id {share_id}")
-    cluster_uuid = share["clusterUuid"]
-    if hardware_id is None:
-        sites = _data_or_raise(client.execute(_PCAP_SITES_QUERY), "allCloudDirectSites")
-        hardware_id = _pick_capture_vm(sites or [], cluster_uuid)
+    sites = None
+    if is_target or hardware_id is None:
+        sites = _data_or_raise(client.execute(_PCAP_SITES_QUERY), "allCloudDirectSites") or []
 
-    # polarisservice resolves shares by their Cloud Direct ID, not the RSC fid.
+    described: dict[str, Any]
+    if is_target:
+        cluster_uuids = [cluster_uuid] if cluster_uuid else [s["clusterUuid"] for s in sites]
+        cluster_uuid, target = _find_capture_target(client, cluster_uuids, target_id)
+        if not target.get("rscId"):
+            raise ValueError(
+                f"Target '{target.get('name')}' ({target_id}) is not managed by RSC. "
+                "Packet capture resolves targets by their RSC managed ID (rscId)."
+            )
+        # polarisservice resolves targets by their RSC managed ID, not the RSC fid.
+        resource_id = target["rscId"]
+        described = {
+            "target": {
+                "id": target.get("id"),
+                "rsc_id": target["rscId"],
+                "name": target.get("name"),
+                "provider": target.get("provider"),
+                "data_bucket": target.get("dataBucket"),
+            }
+        }
+    else:
+        share = _data_or_raise(
+            client.execute(_PCAP_SHARE_QUERY, variables={"fid": share_id}),
+            "cloudDirectNasShare",
+        )
+        if not share.get("cloudDirectId"):
+            raise ValueError(f"No NAS Cloud Direct share with id {share_id}")
+        cluster_uuid = share["clusterUuid"]
+        # polarisservice resolves shares by their Cloud Direct ID, not the RSC fid.
+        resource_id = share["cloudDirectId"]
+        described = {
+            "share": {
+                "id": share_id,
+                "cloud_direct_id": share["cloudDirectId"],
+                "name": share.get("name"),
+            }
+        }
+    if hardware_id is None:
+        hardware_id = _pick_capture_vm(sites, cluster_uuid)
+
     start_input: dict[str, Any] = {
         "clusterUuid": cluster_uuid,
         "hardwareId": hardware_id,
-        "resourceId": share["cloudDirectId"],
+        "resourceId": resource_id,
         "operation": operation,
         "maxDurationSeconds": duration_seconds,
     }
@@ -1563,6 +1746,11 @@ def clouddirect_packet_capture(
         "path": path,
         "maxCount": max_count,
         "readSizeBytes": read_size_bytes,
+        "writeSizeMb": write_size_mb,
+        "writeParallelism": write_parallelism,
+        "writeIterations": write_iterations,
+        "filterHost": filter_host,
+        "filterPort": filter_port,
     }
     start_input.update({k: v for k, v in optional_input.items() if v is not None})
     started = _data_or_raise(
@@ -1593,16 +1781,13 @@ def clouddirect_packet_capture(
         "capture_id": capture_id,
         "cluster_uuid": cluster_uuid,
         "hardware_id": hardware_id,
-        "share": {
-            "id": share_id,
-            "cloud_direct_id": share["cloudDirectId"],
-            "name": share.get("name"),
-        },
+        **described,
         "resource": status.get("resource"),
         "filter": status.get("filter"),
         "error_message": status.get("errorMessage"),
         "operation_output": result_fields.get("operationOutput"),
         "operation_error": result_fields.get("operationError"),
+        "operation_log_errors": _operation_log_errors(result_fields.get("operationOutput")),
         "capture_file_size_bytes": result_fields.get("captureFileSizeBytes"),
     }
     if status.get("state") not in _PCAP_TERMINAL:
