@@ -105,6 +105,7 @@ WRITE_TOOL_NAMES = (
     "rsc_assign_sla",
     "rsc_onboard_host",
     "clouddirect_packet_capture",
+    "clouddirect_throughput_diagnostics",
 )
 
 _SEED_COMMENT = (

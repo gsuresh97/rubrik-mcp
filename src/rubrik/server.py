@@ -1808,6 +1808,238 @@ def clouddirect_packet_capture(
     return out
 
 
+# polarisservice's defaults and limits for a throughput diagnostics run.
+_THROUGHPUT_DEFAULT_SIZE_MB = 100
+_THROUGHPUT_DEFAULT_NUM = 3
+_THROUGHPUT_DEFAULT_EPOCHS = 10
+_THROUGHPUT_DEFAULT_WARMUP = 5
+_THROUGHPUT_DEFAULT_MAX_DURATION_SECONDS = 600
+_THROUGHPUT_MAX_EPOCH_MB = 5000
+_THROUGHPUT_POLL_INTERVAL_SECONDS = 5
+# Time allowed past the legs' time limits for the task to be scheduled and
+# clean up its test data before the tool stops waiting.
+_THROUGHPUT_WAIT_SLACK_SECONDS = 120
+
+_THROUGHPUT_START_MUTATION = (
+    "mutation StartThroughputDiagnostics($input: StartCloudDirectThroughputDiagnosticsInput!) { "
+    "startCloudDirectThroughputDiagnostics(input: $input) { id status } }"
+)
+_THROUGHPUT_PHASE_FIELDS = "bytesPerSec epochBytesPerSec"
+_THROUGHPUT_LEG_FIELDS = f"write {{ {_THROUGHPUT_PHASE_FIELDS} }} read {{ {_THROUGHPUT_PHASE_FIELDS} }}"
+_THROUGHPUT_STATUS_QUERY = (
+    "query ThroughputDiagnostics($taskId: String!, $clusterUuid: UUID!) { "
+    "cloudDirectThroughputDiagnostics(taskId: $taskId, clusterUuid: $clusterUuid) { "
+    "taskId status startTime endTime error params { sizeMb num epochs warmup } "
+    f"source {{ {_THROUGHPUT_LEG_FIELDS} }} target {{ {_THROUGHPUT_LEG_FIELDS} }} }} }}"
+)
+
+
+def _validate_throughput_request(
+    share_id: str | None,
+    source_dir: str | None,
+    target_id: str | None,
+    bucket: str | None,
+    size_mb: int | None,
+    num: int | None,
+    epochs: int | None,
+    warmup: int | None,
+    max_duration_seconds: int | None,
+) -> None:
+    """Reject requests that polarisservice would reject, applying its defaults to unset sizing."""
+    if share_id is None and target_id is None:
+        raise ValueError("pass at least one of share_id or target_id")
+    if (share_id is None) != (source_dir is None):
+        raise ValueError("share_id and source_dir must be passed together")
+    if (target_id is None) != (bucket is None):
+        raise ValueError("target_id and bucket must be passed together")
+    if source_dir is not None and (
+        not source_dir or source_dir.startswith("/") or ".." in source_dir.split("/") or "\0" in source_dir
+    ):
+        raise ValueError("source_dir must be a non-empty relative path without '..' or null bytes")
+    size_mb = _THROUGHPUT_DEFAULT_SIZE_MB if size_mb is None else size_mb
+    num = _THROUGHPUT_DEFAULT_NUM if num is None else num
+    epochs = _THROUGHPUT_DEFAULT_EPOCHS if epochs is None else epochs
+    warmup = _THROUGHPUT_DEFAULT_WARMUP if warmup is None else warmup
+    max_duration_seconds = (
+        _THROUGHPUT_DEFAULT_MAX_DURATION_SECONDS if max_duration_seconds is None else max_duration_seconds
+    )
+    if min(size_mb, num, epochs, max_duration_seconds) < 1 or warmup < 0:
+        raise ValueError("size_mb, num, epochs and max_duration_seconds must be positive and warmup must not be negative")
+    if size_mb * num > _THROUGHPUT_MAX_EPOCH_MB:
+        raise ValueError(f"size_mb × num must be at most {_THROUGHPUT_MAX_EPOCH_MB}")
+    if warmup >= epochs:
+        raise ValueError("warmup must be less than epochs")
+
+
+def _throughput_leg_stats(leg: dict | None) -> dict | None:
+    """Rename a leg's GraphQL stats fields to the tool's snake_case keys."""
+    if not leg:
+        return None
+    return {
+        phase: {
+            "bytes_per_sec": (leg.get(phase) or {}).get("bytesPerSec"),
+            "epoch_bytes_per_sec": (leg.get(phase) or {}).get("epochBytesPerSec"),
+        }
+        for phase in ("write", "read")
+    }
+
+
+def clouddirect_throughput_diagnostics(
+    share_id: str | None = None,
+    source_dir: str | None = None,
+    target_id: str | None = None,
+    bucket: str | None = None,
+    size_mb: int | None = None,
+    num: int | None = None,
+    epochs: int | None = None,
+    warmup: int | None = None,
+    max_duration_seconds: int | None = None,
+    cluster_uuid: str | None = None,
+) -> dict:
+    """Measure write and read throughput from a NAS Cloud Direct cluster to a NAS share, a backup target, or both.
+
+    WRITE OPERATION — writes test data to a share directory and/or a target
+    bucket in your environment, reads it back, and deletes it. Only invoke on
+    the user's explicit request.
+
+    Starts a throughput diagnostics run on the resource's NAS Cloud Direct
+    cluster, waits for it to finish, and returns the measured rates. Use it to
+    tell whether slow backups are limited by the share side or the target side.
+
+    Pass share_id, target_id, or both. Find share ids with
+    rsc_execute_operation on cloudDirectNasShares, and target ids with
+    ncdTargets(clusterUuid).
+
+    Args:
+        share_id: RSC ID (fid) of the NAS Cloud Direct share. Requires
+            source_dir.
+        source_dir: Directory, relative to the share root, that the run writes
+            its test files under.
+        target_id: RSC ID (id) or RSC managed ID (rscId) of the NAS Cloud
+            Direct backup target, as returned by ncdTargets. Requires bucket.
+        bucket: Existing bucket on the target that the run writes its test
+            objects to.
+        size_mb: Size of each test object in MB. Default 100.
+        num: Objects transferred in parallel in each epoch. Default 3.
+            size_mb × num must be at most 5000.
+        epochs: Number of epochs. Default 10.
+        warmup: Leading epochs excluded from the mean rate. Default 5; must be
+            less than epochs.
+        max_duration_seconds: Time limit for each leg. Default 600.
+        cluster_uuid: Target-only runs. Cluster to look the target up in.
+            Defaults to searching every NAS Cloud Direct cluster. With a
+            share, the share's cluster is used.
+
+    Returns:
+        Dict with status (SUCCEEDED, FAILED, or CANCELED once finished),
+        task_id, cluster_uuid, share and/or target, start_time, end_time,
+        error, params (the sizing the run used), share_stats, and
+        target_stats. Each stats entry has write and read phases with bytes_per_sec (mean of
+        the epochs after warmup) and epoch_bytes_per_sec (every epoch).
+        timed_out is set when the run did not finish in time; poll it with
+        cloudDirectThroughputDiagnostics(taskId, clusterUuid).
+
+    Interpreting the result:
+        - A leg's stats are unset when that leg was not requested or failed;
+          error explains a failure.
+        - Compare share and target rates to find the slower side. A large
+          spread in epoch_bytes_per_sec points to contention or throttling.
+    """
+    _validate_throughput_request(
+        share_id, source_dir, target_id, bucket, size_mb, num, epochs, warmup, max_duration_seconds,
+    )
+    if share_id is not None:
+        share_id = str(uuid.UUID(share_id))
+    if target_id is not None:
+        target_id = str(uuid.UUID(target_id))
+    if cluster_uuid is not None:
+        if share_id is not None:
+            raise ValueError("cluster_uuid only applies to target-only runs; a share's cluster is looked up")
+        cluster_uuid = str(uuid.UUID(cluster_uuid))
+
+    client = _mcp_rsc_client()
+    described: dict[str, Any] = {}
+    if share_id is not None:
+        share = _data_or_raise(
+            client.execute(_PCAP_SHARE_QUERY, variables={"fid": share_id}),
+            "cloudDirectNasShare",
+        )
+        if not share.get("cloudDirectId"):
+            raise ValueError(f"No NAS Cloud Direct share with id {share_id}")
+        cluster_uuid = share["clusterUuid"]
+        described["share"] = {"id": share_id, "name": share.get("name")}
+    if target_id is not None:
+        if cluster_uuid:
+            cluster_uuids = [cluster_uuid]
+        else:
+            sites = _data_or_raise(client.execute(_PCAP_SITES_QUERY), "allCloudDirectSites") or []
+            cluster_uuids = [s["clusterUuid"] for s in sites]
+        cluster_uuid, target = _find_capture_target(client, cluster_uuids, target_id)
+        if not target.get("rscId"):
+            raise ValueError(
+                f"Target '{target.get('name')}' ({target_id}) is not managed by RSC. "
+                "Throughput diagnostics resolves targets by their RSC managed ID (rscId)."
+            )
+        described["target"] = {
+            "id": target.get("id"),
+            "rsc_id": target["rscId"],
+            "name": target.get("name"),
+            "provider": target.get("provider"),
+        }
+
+    start_input: dict[str, Any] = {"clusterUuid": cluster_uuid}
+    optional_input = {
+        "shareFid": share_id,
+        "sourceDir": source_dir,
+        "targetPolarisManagedId": described.get("target", {}).get("rsc_id"),
+        "bucket": bucket,
+        "sizeMb": size_mb,
+        "num": num,
+        "epochs": epochs,
+        "warmup": warmup,
+        "maxDurationSec": max_duration_seconds,
+    }
+    start_input.update({k: v for k, v in optional_input.items() if v is not None})
+    started = _data_or_raise(
+        client.execute(_THROUGHPUT_START_MUTATION, variables={"input": start_input}),
+        "startCloudDirectThroughputDiagnostics",
+    )
+    task_id = started.get("id")
+    if not task_id:
+        raise RuntimeError(f"startCloudDirectThroughputDiagnostics returned no task id: {started}")
+
+    leg_seconds = max_duration_seconds or _THROUGHPUT_DEFAULT_MAX_DURATION_SECONDS
+    deadline = time.monotonic() + len(described) * leg_seconds + _THROUGHPUT_WAIT_SLACK_SECONDS
+    ids = {"taskId": task_id, "clusterUuid": cluster_uuid}
+    while True:
+        status = _data_or_raise(
+            client.execute(_THROUGHPUT_STATUS_QUERY, variables=ids),
+            "cloudDirectThroughputDiagnostics",
+        )
+        if status.get("status") in _CDM_ASYNC_TERMINAL:
+            break
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(_THROUGHPUT_POLL_INTERVAL_SECONDS, remaining))
+
+    out: dict[str, Any] = {
+        "status": status.get("status"),
+        "task_id": task_id,
+        "cluster_uuid": cluster_uuid,
+        **described,
+        "start_time": status.get("startTime"),
+        "end_time": status.get("endTime"),
+        "error": status.get("error"),
+        "params": status.get("params"),
+        "share_stats": _throughput_leg_stats(status.get("source")),
+        "target_stats": _throughput_leg_stats(status.get("target")),
+    }
+    if status.get("status") not in _CDM_ASYNC_TERMINAL:
+        out["timed_out"] = True
+    return out
+
+
 _EVENT_FIELDS = (
     "activitySeriesId objectName objectType lastActivityStatus lastActivityType severity "
     "startTime lastUpdated clusterName location slaDomainName isOnDemand "

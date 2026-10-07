@@ -35,7 +35,7 @@ With an RSC service account, the agent can run live GraphQL queries against your
 - Trigger on-demand snapshots and poll until they complete
 - Register hosts and assign SLA domains
 
-Raw GraphQL execution is read-only. If you ask for a write operation not covered by a built-in tool, the server returns the attempted mutation and the agent generates a runnable code sample. A small number of write operations are available as dedicated built-in tools: on-demand snapshots (`rsc_take_on_demand_snapshot`), host onboarding (`rsc_onboard_host`), SLA assignment (`rsc_assign_sla`), and NAS Cloud Direct packet capture (`clouddirect_packet_capture`). **These are disabled by default** — set `"writes_enabled": true` in the [gating policy](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/advanced.md#gating-policy) to expose them. For everything else, the generated code approach gives you a runnable script with full control.
+Raw GraphQL execution is read-only. If you ask for a write operation not covered by a built-in tool, the server returns the attempted mutation and the agent generates a runnable code sample. A small number of write operations are available as dedicated built-in tools: on-demand snapshots (`rsc_take_on_demand_snapshot`), host onboarding (`rsc_onboard_host`), SLA assignment (`rsc_assign_sla`), NAS Cloud Direct packet capture (`clouddirect_packet_capture`), and NAS Cloud Direct throughput diagnostics (`clouddirect_throughput_diagnostics`). **These are disabled by default** — set `"writes_enabled": true` in the [gating policy](https://github.com/rubrikinc/rubrik-mcp/blob/main/docs/advanced.md#gating-policy) to expose them. For everything else, the generated code approach gives you a runnable script with full control.
 
 > [!WARNING]
 > **Write tools act on your Rubrik environment, and the LLM driving the MCP decides when to call them.** Any model can misread instructions or be influenced by untrusted data it reads (prompt injection) and invoke a write tool you did not intend — for example an SLA change via `rsc_assign_sla` that leaves data unprotected. As more write tools are added, this surface grows. They are disabled by default for that reason; enabling them is an explicit choice. The durable boundary is a **least-privilege, read-only service account**, which cannot perform any write operation regardless of which model you use or how the agent behaves. See [Service account role recommendations](#service-account-role-recommendations), and enable **Quorum Authorization** for destructive operations.
@@ -65,6 +65,7 @@ Raw GraphQL execution is read-only. If you ask for a write operation not covered
 | `rsc_onboard_host` | Register a physical or virtual host |
 | `rsc_assign_sla` | Assign, unassign, or set do-not-protect on workloads |
 | `clouddirect_packet_capture` | Capture a NAS Cloud Direct VM's traffic to a share (list, read, stat) or a backup target (sized test writes), and download the pcap |
+| `clouddirect_throughput_diagnostics` | Measure a NAS Cloud Direct cluster's write and read throughput to a share, a backup target, or both |
 
 **Workflow management** — service account required
 

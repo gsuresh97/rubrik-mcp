@@ -31,6 +31,7 @@ These tools work entirely offline using a pre-built index of the RSC schema. No 
 | `rsc_assign_sla` | Assign an SLA domain to one or more workloads |
 | `rsc_onboard_host` | Register a host so Rubrik can protect workloads running on it |
 | `clouddirect_packet_capture` | Capture traffic between a NAS Cloud Direct VM and a share (list, crawl, stat, read, fsstat) or a backup target (test writes of configurable size, parallelism, and iterations), and download the pcap locally |
+| `clouddirect_throughput_diagnostics` | Measure write and read throughput from a NAS Cloud Direct cluster to a share directory, a backup target bucket, or both, with configurable object size, parallelism, epochs, and warmup |
 
 ### Community workflow examples
 
@@ -127,7 +128,8 @@ This is the template seeded on first run — every write tool is listed so you c
     "rsc_take_on_demand_snapshot": true,
     "rsc_assign_sla": true,
     "rsc_onboard_host": true,
-    "clouddirect_packet_capture": true
+    "clouddirect_packet_capture": true,
+    "clouddirect_throughput_diagnostics": true
   },
   "queries": { "allow_by_default": true, "allowed": [], "denied": [] },
   "cross_mcp_egress": { "allowed": [] }
